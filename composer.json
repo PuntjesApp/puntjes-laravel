@@ -68,7 +68,7 @@
             "options": {
                 "symlink": true,
                 "versions": {
-                    "puntjes/php-sdk": "0.1.0"
+                    "puntjes/php-sdk": "0.1.1"
                 }
             }
         }

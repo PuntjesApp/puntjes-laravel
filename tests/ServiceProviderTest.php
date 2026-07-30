@@ -67,12 +67,39 @@ final class ServiceProviderTest extends TestCase
     {
         // The default in config/puntjes.php ships to every install, so it must itself
         // be a form the SDK accepts — and must not double up the /api/v1 prefix.
-        $shipped = require __DIR__.'/../config/puntjes.php';
+        //
+        // env() reads the ambient process environment, so a PUNTJES_BASE_URL exported
+        // in the developer's shell (e.g. for the SDK's contract suite) would silently
+        // replace the default under test. Clear it for the duration.
+        $backup = [
+            'env' => $_ENV['PUNTJES_BASE_URL'] ?? null,
+            'server' => $_SERVER['PUNTJES_BASE_URL'] ?? null,
+            'getenv' => getenv('PUNTJES_BASE_URL'),
+        ];
 
-        $config = new Config('id', 'secret', $shipped['base_url']);
+        unset($_ENV['PUNTJES_BASE_URL'], $_SERVER['PUNTJES_BASE_URL']);
+        putenv('PUNTJES_BASE_URL');
 
-        self::assertSame('https://puntjes.app/api/v1/me', $config->apiUrl('/me'));
-        self::assertSame('https://puntjes.app/oauth/token', $config->tokenUrl());
+        try {
+            $shipped = require __DIR__.'/../config/puntjes.php';
+
+            $config = new Config('id', 'secret', $shipped['base_url']);
+
+            self::assertSame('https://puntjes.app/api/v1/me', $config->apiUrl('/me'));
+            self::assertSame('https://puntjes.app/oauth/token', $config->tokenUrl());
+        } finally {
+            if ($backup['env'] !== null) {
+                $_ENV['PUNTJES_BASE_URL'] = $backup['env'];
+            }
+
+            if ($backup['server'] !== null) {
+                $_SERVER['PUNTJES_BASE_URL'] = $backup['server'];
+            }
+
+            if ($backup['getenv'] !== false) {
+                putenv('PUNTJES_BASE_URL='.$backup['getenv']);
+            }
+        }
     }
 
     public function test_missing_credentials_fail_on_resolution_not_at_boot(): void
