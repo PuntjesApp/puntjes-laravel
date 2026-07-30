@@ -157,18 +157,16 @@ composer analyse     # PHPStan level 6
 composer format      # Pint
 ```
 
-`composer.json` currently carries a **path repository** pointing at a sibling
-`../puntjes-php-sdk` checkout, because the core SDK is not on Packagist yet. Clone
-both repos side by side:
+The core SDK resolves from Packagist. To develop both packages side by side with SDK
+edits visible here immediately, add a path repository **locally, without committing
+it**:
 
-```
-Developer/
-├── puntjes-php-sdk
-└── puntjes-laravel
+```bash
+composer config repositories.sdk '{"type": "path", "url": "../puntjes-php-sdk", "options": {"symlink": true}}'
+composer update puntjes/php-sdk
 ```
 
-Delete that `repositories` block once `puntjes/php-sdk` is published — the `^0.1`
-constraint in `require` is already the real one and needs no change.
+Revert `composer.json` before committing.
 
 ## License
 

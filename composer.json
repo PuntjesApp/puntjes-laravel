@@ -60,17 +60,5 @@
         }
     },
     "minimum-stability": "stable",
-    "prefer-stable": true,
-    "repositories": [
-        {
-            "type": "path",
-            "url": "../puntjes-php-sdk",
-            "options": {
-                "symlink": true,
-                "versions": {
-                    "puntjes/php-sdk": "0.1.1"
-                }
-            }
-        }
-    ]
+    "prefer-stable": true
 }
