@@ -22,7 +22,7 @@ Add your credentials from **Puntjes → Settings → API clients**:
 ```dotenv
 PUNTJES_CLIENT_ID=…
 PUNTJES_CLIENT_SECRET=…
-PUNTJES_BASE_URL=https://app.puntjes.app
+PUNTJES_BASE_URL=https://puntjes.app/api/v1
 ```
 
 That is the whole setup — the provider and facade are auto-discovered.
@@ -82,16 +82,17 @@ The facade exposes each endpoint group as a method — `Puntjes::customers()`,
 |---|---|---|---|
 | `client_id` | `PUNTJES_CLIENT_ID` | — | Required |
 | `client_secret` | `PUNTJES_CLIENT_SECRET` | — | Required. Never commit it |
-| `base_url` | `PUNTJES_BASE_URL` | `https://app.puntjes.app` | App root, **not** `/api/v1` |
+| `base_url` | `PUNTJES_BASE_URL` | `https://puntjes.app/api/v1` | As documented; the bare host also works |
 | `cache.store` | `PUNTJES_CACHE_STORE` | app default | Use a shared store in production |
 | `cache.prefix` | `PUNTJES_CACHE_PREFIX` | `puntjes` | |
 | `http.retries` | `PUNTJES_RETRIES` | `2` | Retry-safe requests only |
 | `http.timeout` | `PUNTJES_TIMEOUT` | `10` | Seconds |
 | `http.connect_timeout` | `PUNTJES_CONNECT_TIMEOUT` | `5` | Seconds |
 
-A `base_url` that mistakenly includes `/api/v1` — the likeliest `.env` slip, since
-that is the URL in the API docs — is normalised away rather than producing
-`/api/v1/api/v1/…` and an unreachable token endpoint.
+`PUNTJES_BASE_URL` takes the base URL exactly as the API docs state it,
+`https://puntjes.app/api/v1`. The bare host is accepted as well — the SDK keeps only
+the host either way, because the API lives under `/api/v1` while the OAuth token
+endpoint sits at `/oauth/token`, off the root.
 
 Missing credentials raise a `ConfigurationException` when the client is first
 resolved, not at boot, so an app that has the package installed but not yet

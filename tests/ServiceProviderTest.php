@@ -41,17 +41,38 @@ final class ServiceProviderTest extends TestCase
         self::assertSame(5, $this->app->make(Config::class)->maxRetries);
     }
 
-    public function test_a_base_url_including_the_api_prefix_is_normalised(): void
+    public function test_the_documented_base_url_including_the_api_prefix_is_accepted(): void
     {
-        // The likeliest .env mistake: pasting the URL from the API docs. Left alone it
-        // would produce /api/v1/api/v1/... and an unreachable token endpoint.
+        // What an integrator pastes out of the API docs. Taken verbatim it would send
+        // the token request to /api/v1/oauth/token, which does not exist.
         config()->set('puntjes.base_url', 'https://app.puntjes.test/api/v1');
 
         $config = $this->app->make(Config::class);
 
-        self::assertSame('https://app.puntjes.test', $config->baseUrl);
         self::assertSame('https://app.puntjes.test/oauth/token', $config->tokenUrl());
         self::assertSame('https://app.puntjes.test/api/v1/me', $config->apiUrl('/me'));
+    }
+
+    public function test_the_bare_host_resolves_identically(): void
+    {
+        config()->set('puntjes.base_url', 'https://app.puntjes.test');
+
+        $config = $this->app->make(Config::class);
+
+        self::assertSame('https://app.puntjes.test/oauth/token', $config->tokenUrl());
+        self::assertSame('https://app.puntjes.test/api/v1/me', $config->apiUrl('/me'));
+    }
+
+    public function test_the_shipped_default_base_url_is_usable(): void
+    {
+        // The default in config/puntjes.php ships to every install, so it must itself
+        // be a form the SDK accepts — and must not double up the /api/v1 prefix.
+        $shipped = require __DIR__.'/../config/puntjes.php';
+
+        $config = new Config('id', 'secret', $shipped['base_url']);
+
+        self::assertSame('https://puntjes.app/api/v1/me', $config->apiUrl('/me'));
+        self::assertSame('https://puntjes.app/oauth/token', $config->tokenUrl());
     }
 
     public function test_missing_credentials_fail_on_resolution_not_at_boot(): void

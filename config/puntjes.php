@@ -24,12 +24,15 @@ return [
     | Base URL
     |--------------------------------------------------------------------------
     |
-    | The Puntjes application root — NOT the /api/v1 prefix. Both the API and the
-    | OAuth token endpoint are derived from it.
+    | The base URL as the API docs state it, https://puntjes.app/api/v1. The bare
+    | host works too — both are accepted and equivalent.
+    |
+    | The SDK keeps only the host internally, because the API lives under /api/v1
+    | while the OAuth token endpoint sits at /oauth/token, off the root.
     |
     */
 
-    'base_url' => env('PUNTJES_BASE_URL', 'https://app.puntjes.app'),
+    'base_url' => env('PUNTJES_BASE_URL', 'https://puntjes.app/api/v1'),
 
     /*
     |--------------------------------------------------------------------------
