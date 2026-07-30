@@ -1,0 +1,76 @@
+{
+    "name": "puntjes/laravel",
+    "description": "Laravel integration for the Puntjes loyalty API \u2014 service provider, facade, config and a cache-backed token store.",
+    "type": "library",
+    "keywords": [
+        "puntjes",
+        "loyalty",
+        "laravel",
+        "sdk",
+        "api"
+    ],
+    "homepage": "https://github.com/TheGangOfFour/puntjes-laravel",
+    "license": "MIT",
+    "support": {
+        "issues": "https://github.com/TheGangOfFour/puntjes-laravel/issues",
+        "docs": "https://docs.puntjes.app"
+    },
+    "require": {
+        "php": "^8.2",
+        "puntjes/php-sdk": "^0.1",
+        "illuminate/contracts": "^11.0 || ^12.0 || ^13.0",
+        "illuminate/support": "^11.0 || ^12.0 || ^13.0"
+    },
+    "require-dev": {
+        "orchestra/testbench": "^9.0 || ^10.0 || ^11.0",
+        "phpunit/phpunit": "^10.5 || ^11.0",
+        "nyholm/psr7": "^1.8",
+        "phpstan/phpstan": "^1.11",
+        "laravel/pint": "^1.17"
+    },
+    "autoload": {
+        "psr-4": {
+            "Puntjes\\Laravel\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Puntjes\\Laravel\\Tests\\": "tests/"
+        }
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "Puntjes\\Laravel\\PuntjesServiceProvider"
+            ],
+            "aliases": {
+                "Puntjes": "Puntjes\\Laravel\\Facades\\Puntjes"
+            }
+        }
+    },
+    "scripts": {
+        "test": "phpunit",
+        "analyse": "phpstan analyse",
+        "format": "pint"
+    },
+    "config": {
+        "sort-packages": true,
+        "allow-plugins": {
+            "php-http/discovery": true
+        }
+    },
+    "minimum-stability": "stable",
+    "prefer-stable": true,
+    "repositories": [
+        {
+            "type": "path",
+            "url": "../puntjes-php-sdk",
+            "options": {
+                "symlink": true,
+                "versions": {
+                    "puntjes/php-sdk": "0.1.0"
+                }
+            }
+        }
+    ]
+}

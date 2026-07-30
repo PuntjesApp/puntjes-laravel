@@ -1,0 +1,79 @@
+<?php
+
+declare(strict_types=1);
+
+return [
+
+    /*
+    |--------------------------------------------------------------------------
+    | Credentials
+    |--------------------------------------------------------------------------
+    |
+    | The OAuth client id and secret from Puntjes → Settings → API clients.
+    | Keep the secret in .env — it is a bearer credential for your whole vendor
+    | account and must never be committed.
+    |
+    */
+
+    'client_id' => env('PUNTJES_CLIENT_ID'),
+
+    'client_secret' => env('PUNTJES_CLIENT_SECRET'),
+
+    /*
+    |--------------------------------------------------------------------------
+    | Base URL
+    |--------------------------------------------------------------------------
+    |
+    | The Puntjes application root — NOT the /api/v1 prefix. Both the API and the
+    | OAuth token endpoint are derived from it.
+    |
+    */
+
+    'base_url' => env('PUNTJES_BASE_URL', 'https://app.puntjes.app'),
+
+    /*
+    |--------------------------------------------------------------------------
+    | Token cache
+    |--------------------------------------------------------------------------
+    |
+    | Access tokens are cached so a token grant does not happen on every web
+    | request. `store` names a cache store from config/cache.php; null uses the
+    | application default.
+    |
+    | Use a SHARED store (redis, database, memcached) in production. The `array`
+    | and `file` drivers are per-process and per-server respectively, which means
+    | every worker grants its own token — correct, but wasteful.
+    |
+    */
+
+    'cache' => [
+        'store' => env('PUNTJES_CACHE_STORE'),
+
+        'prefix' => env('PUNTJES_CACHE_PREFIX', 'puntjes'),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | HTTP
+    |--------------------------------------------------------------------------
+    |
+    | `retries` is how many times a retry-SAFE request is retried on a 5xx, a
+    | rate limit, or a connection failure. Requests that could duplicate a
+    | side effect are never retried regardless of this value — see the SDK's
+    | Transport for the full policy.
+    |
+    | `timeout` and `connect_timeout` are in seconds and apply to the Guzzle
+    | client this package builds. They are ignored if you bind your own PSR-18
+    | client into the container.
+    |
+    */
+
+    'http' => [
+        'retries' => (int) env('PUNTJES_RETRIES', 2),
+
+        'timeout' => (float) env('PUNTJES_TIMEOUT', 10),
+
+        'connect_timeout' => (float) env('PUNTJES_CONNECT_TIMEOUT', 5),
+    ],
+
+];
