@@ -1,0 +1,51 @@
+# Changelog
+
+Notable changes to `puntjes/laravel`. The format follows
+[Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this package follows
+[semantic versioning](https://semver.org/).
+
+This package is Laravel wiring only — config, provider, facade and a cache-backed
+token store. Changes to the API surface itself live in
+[`puntjes/php-sdk`'s changelog](https://github.com/TheGangOfFour/puntjes-php-sdk/blob/main/CHANGELOG.md).
+
+## 0.2.0 — 2026-08-28
+
+### Changed
+
+- **Requires `puntjes/php-sdk` `^0.2`.** Under composer's caret rules a `0.x` release
+  is not compatible with the one before it, so the previous `^0.1` constraint excluded
+  the new SDK outright — this package could not have installed it at all. The SDK
+  release brings branches, campaign bonnen, external-id linking, loyalty-card sends and
+  marketing consent, and narrows two types to match what the API sends. Read its
+  changelog before upgrading: `Campaign::$multiplier` and `Statistics::$loyalty` are now
+  nullable.
+
+### Added
+
+- `Puntjes::vouchers()` — the facade accessor for the SDK's new campaign-bon resource.
+  The SDK exposes its endpoint groups as readonly properties, which a facade cannot
+  proxy, so every group needs one of these.
+
+### Note
+
+This release also carries the previously untagged `chore: resolve the core SDK from
+Packagist`, which removed the temporary path repository pointing at a sibling checkout.
+
+## 0.1.1 — 2026-07-30
+
+### Fixed
+
+- Default `PUNTJES_BASE_URL` to the documented base URL,
+  `https://puntjes.app/api/v1`.
+
+### Changed
+
+- Isolate the shipped-default test from the ambient environment, so a developer with
+  `PUNTJES_BASE_URL` exported no longer sees a passing test for the wrong reason.
+
+## 0.1.0 — 2026-07-30
+
+Initial release: the service provider, the `Puntjes` facade with an accessor per
+endpoint group, a publishable config file, and `CacheTokenStore` — the part that
+matters in production, so an app grants one access token per hour rather than one per
+web request.
