@@ -9,10 +9,10 @@
         "sdk",
         "api"
     ],
-    "homepage": "https://github.com/TheGangOfFour/puntjes-laravel",
+    "homepage": "https://github.com/PuntjesApp/puntjes-laravel",
     "license": "MIT",
     "support": {
-        "issues": "https://github.com/TheGangOfFour/puntjes-laravel/issues",
+        "issues": "https://github.com/PuntjesApp/puntjes-laravel/issues",
         "docs": "https://docs.puntjes.app"
     },
     "require": {

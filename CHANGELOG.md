@@ -6,7 +6,7 @@ Notable changes to `puntjes/laravel`. The format follows
 
 This package is Laravel wiring only — config, provider, facade and a cache-backed
 token store. Changes to the API surface itself live in
-[`puntjes/php-sdk`'s changelog](https://github.com/TheGangOfFour/puntjes-php-sdk/blob/main/CHANGELOG.md).
+[`puntjes/php-sdk`'s changelog](https://github.com/PuntjesApp/puntjes-php-sdk/blob/main/CHANGELOG.md).
 
 ## 0.2.0 — 2026-08-28
 

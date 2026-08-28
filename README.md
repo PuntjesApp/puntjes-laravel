@@ -2,13 +2,13 @@
 
 Laravel integration for the [Puntjes](https://puntjes.app) loyalty API.
 
-A thin layer over [`puntjes/php-sdk`](https://github.com/TheGangOfFour/puntjes-php-sdk):
+A thin layer over [`puntjes/php-sdk`](https://github.com/PuntjesApp/puntjes-php-sdk):
 config, a service provider, a facade, and — the part that actually matters in
 production — a **cache-backed token store** so your app grants one access token per
 hour instead of one per web request.
 
 All the API surface, retry rules and error types live in the core SDK. Read its
-[README](https://github.com/TheGangOfFour/puntjes-php-sdk#readme) for those; this one
+[README](https://github.com/PuntjesApp/puntjes-php-sdk#readme) for those; this one
 covers only the Laravel wiring.
 
 ## Install
