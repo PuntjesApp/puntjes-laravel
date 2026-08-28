@@ -12,6 +12,7 @@ use Puntjes\Laravel\Facades\Puntjes as PuntjesFacade;
 use Puntjes\Puntjes;
 use Puntjes\Resource\Customers;
 use Puntjes\Resource\Products;
+use Puntjes\Resource\Vouchers;
 
 final class ServiceProviderTest extends TestCase
 {
@@ -118,6 +119,7 @@ final class ServiceProviderTest extends TestCase
     {
         self::assertInstanceOf(Customers::class, PuntjesFacade::customers());
         self::assertInstanceOf(Products::class, PuntjesFacade::products());
+        self::assertInstanceOf(Vouchers::class, PuntjesFacade::vouchers());
         self::assertSame($this->app->make(Puntjes::class), PuntjesFacade::client());
     }
 

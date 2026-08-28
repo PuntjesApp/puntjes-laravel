@@ -70,8 +70,8 @@ final class AwardLoyaltyPointsAction
 
 The facade exposes each endpoint group as a method — `Puntjes::customers()`,
 `transactions()`, `wallets()`, `rewards()`, `redemptions()`, `products()`,
-`campaigns()`, `statistics()` — plus `Puntjes::me()`, `Puntjes::ping()` and
-`Puntjes::client()` for the underlying SDK instance.
+`campaigns()`, `statistics()`, `vouchers()` — plus `Puntjes::me()`, `Puntjes::ping()`
+and `Puntjes::client()` for the underlying SDK instance.
 
 > The SDK exposes those groups as readonly *properties*, which a facade cannot proxy
 > (`__callStatic` only forwards method calls). Hence the accessor methods.

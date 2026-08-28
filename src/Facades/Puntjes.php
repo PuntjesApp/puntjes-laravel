@@ -15,6 +15,7 @@ use Puntjes\Resource\Redemptions;
 use Puntjes\Resource\Rewards;
 use Puntjes\Resource\Statistics;
 use Puntjes\Resource\Transactions;
+use Puntjes\Resource\Vouchers;
 use Puntjes\Resource\Wallets;
 
 /**
@@ -73,6 +74,11 @@ final class Puntjes extends Facade
     public static function statistics(): Statistics
     {
         return self::client()->statistics;
+    }
+
+    public static function vouchers(): Vouchers
+    {
+        return self::client()->vouchers;
     }
 
     /** The underlying SDK client, for anything the accessors above do not cover. */
