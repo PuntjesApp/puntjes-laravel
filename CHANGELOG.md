@@ -2,7 +2,36 @@
 
 Notable changes to `puntjes/laravel`. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this package follows
-[semantic versioning](https://semver.org/).
+[semantic versioning](https://semver.org/). From 1.0.0 that promise is the ordinary
+one: a breaking change waits for the next major, so `^1.0` is safe to pin and leave.
+
+## 1.0.0 — 2026-08-29
+
+The first stable release, tracking `puntjes/php-sdk` 1.0.0.
+
+### Changed
+
+- **Requires `puntjes/php-sdk` `^1.0`.** The core's 1.0.0 fixes the customer
+  registration contract: a loyalty card read from the API used to decode with a null
+  type, and a customer could not be registered without one. Nobody got that fix through
+  this package while it pinned `^0.2`. See the core's changelog for the rename an
+  upgrade needs.
+
+### Added
+
+- **`http.retry_base_delay`**, seconds before the first retry, doubling after each. The
+  core has always accepted it; this package had no key for it, so tuning backoff meant
+  binding your own client and giving up the package.
+- **`http.default_headers`**, sent on every request. Same story. The package's own
+  `User-Agent` is still set, and listing `User-Agent` yourself replaces it rather than
+  being ignored.
+
+### Fixed
+
+- **`Puntjes::config()` is visible again to an IDE and to static analysis.** It always
+  worked through `__callStatic`, but it was missing from the facade's `@method` block,
+  so both were told it did not exist. A test now compares the facade's documented
+  surface against the client's real one, because that drift is invisible at runtime.
 
 This package is Laravel wiring only — config, provider, facade and a cache-backed
 token store. Changes to the API surface itself live in

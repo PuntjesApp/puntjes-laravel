@@ -38,9 +38,13 @@ final class PuntjesServiceProvider extends ServiceProvider
                 clientSecret: $clientSecret,
                 baseUrl: (string) config('puntjes.base_url'),
                 maxRetries: (int) config('puntjes.http.retries', 2),
-                defaultHeaders: [
-                    'User-Agent' => 'puntjes-laravel/'.($this->app->version()),
-                ],
+                retryBaseDelay: (float) config('puntjes.http.retry_base_delay', 0.5),
+                // Configured headers are merged over the package's own, so naming
+                // User-Agent replaces it and anything else joins it.
+                defaultHeaders: array_merge(
+                    ['User-Agent' => 'puntjes-laravel/'.($this->app->version())],
+                    (array) config('puntjes.http.default_headers', []),
+                ),
             );
         });
 

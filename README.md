@@ -86,8 +86,13 @@ and `Puntjes::client()` for the underlying SDK instance.
 | `cache.store` | `PUNTJES_CACHE_STORE` | app default | Use a shared store in production |
 | `cache.prefix` | `PUNTJES_CACHE_PREFIX` | `puntjes` | |
 | `http.retries` | `PUNTJES_RETRIES` | `2` | Retry-safe requests only |
+| `http.retry_base_delay` | `PUNTJES_RETRY_BASE_DELAY` | `0.5` | Seconds before the first retry; doubles after each |
 | `http.timeout` | `PUNTJES_TIMEOUT` | `10` | Seconds |
 | `http.connect_timeout` | `PUNTJES_CONNECT_TIMEOUT` | `5` | Seconds |
+| `http.default_headers` | — | `[]` | Sent on every request |
+
+This package sends a `User-Agent` naming itself and your Laravel version. Listing
+`User-Agent` in `http.default_headers` replaces it; any other key is sent alongside it.
 
 `PUNTJES_BASE_URL` takes the base URL exactly as the API docs state it,
 `https://puntjes.app/api/v1`. The bare host is accepted as well — the SDK keeps only
