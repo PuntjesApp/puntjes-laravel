@@ -20,18 +20,31 @@ The first stable release, tracking `puntjes/php-sdk` 1.0.0.
 ### Added
 
 - **`http.retry_base_delay`**, seconds before the first retry, doubling after each. The
-  core has always accepted it; this package had no key for it, so tuning backoff meant
-  binding your own client and giving up the package.
+  core has always accepted it; this package had no key for it, so the only way to change
+  backoff was to rebind `Puntjes\Config` yourself. Binding your own PSR-18 client, which
+  is this package's documented extension point, gives no control over it at all: the
+  backoff lives in the SDK's transport, around whatever client you bind. A negative value
+  is now refused at resolution rather than reaching `usleep()` mid-retry.
 - **`http.default_headers`**, sent on every request. Same story. The package's own
   `User-Agent` is still set, and listing `User-Agent` yourself replaces it rather than
   being ignored.
 
+### Upgrading
+
+If you published `config/puntjes.php` under an earlier version, add `retry_base_delay`
+and `default_headers` to the `http` array in your copy, or re-publish it. Laravel merges
+a package config only at the top level, so a published `http` array replaces the
+package's whole `http` block: without the edit the two new settings are silently absent
+and `PUNTJES_RETRY_BASE_DELAY` does nothing.
+
 ### Fixed
 
-- **`Puntjes::config()` is visible again to an IDE and to static analysis.** It always
-  worked through `__callStatic`, but it was missing from the facade's `@method` block,
-  so both were told it did not exist. A test now compares the facade's documented
-  surface against the client's real one, because that drift is invisible at runtime.
+- **`Puntjes::config()` is visible to an IDE and to static analysis**, for the first
+  time. It always worked through `__callStatic`, but it had never been in the facade's
+  `@method` block, so both were told it did not exist. Two tests now compare the facade's
+  documented method names against the client's real ones, in both directions, because
+  that drift is invisible at runtime: a missing line loses only tooling, and a line for a
+  method the SDK has removed still forwards to nothing.
 
 This package is Laravel wiring only — config, provider, facade and a cache-backed
 token store. Changes to the API surface itself live in

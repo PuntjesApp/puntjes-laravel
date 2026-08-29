@@ -56,7 +56,6 @@ final class ServiceProviderTest extends TestCase
         self::assertSame('abc123', $this->app->make(Config::class)->defaultHeaders['X-Trace-Id'] ?? null);
     }
 
-    /** Adding a header of your own must not cost you the one this package sets. */
     public function test_the_package_user_agent_survives_configured_headers(): void
     {
         config()->set('puntjes.http.default_headers', ['X-Trace-Id' => 'abc123']);
@@ -67,7 +66,6 @@ final class ServiceProviderTest extends TestCase
         self::assertStringStartsWith('puntjes-laravel/', $headers['User-Agent']);
     }
 
-    /** ... but naming it yourself is how you replace it. */
     public function test_a_configured_user_agent_wins(): void
     {
         config()->set('puntjes.http.default_headers', ['User-Agent' => 'acme-pos/2.1']);
@@ -77,33 +75,82 @@ final class ServiceProviderTest extends TestCase
 
     /**
      * The facade is a hand-maintained copy of the client's surface, so it drifts the
-     * moment the SDK grows a method. That drift is invisible: `__callStatic` forwards the
-     * call anyway, so the only thing lost is what an IDE and a static analyser can see,
-     * which nothing else in this suite exercises.
+     * moment the SDK grows or drops a method. That drift is invisible: `__callStatic`
+     * forwards the call anyway, so the only thing lost is what an IDE and a static
+     * analyser can see, which nothing else here exercises. Both directions are checked,
+     * because a facade advertising a method the SDK removed fails just as quietly.
      */
     public function test_the_facade_documents_every_method_on_the_client(): void
     {
-        $documented = [];
+        $missing = array_diff(
+            $this->clientMethods(),
+            $this->documentedMethods(),
+            $this->facadeAccessors(),
+        );
+
+        self::assertSame([], array_values($missing), 'The facade does not mention: '.implode(', ', $missing));
+    }
+
+    public function test_the_facade_documents_nothing_the_client_lacks(): void
+    {
+        $ghosts = array_diff($this->documentedMethods(), $this->clientMethods());
+
+        self::assertSame([], array_values($ghosts), 'The facade advertises what the SDK does not have: '.implode(', ', $ghosts));
+    }
+
+    /** @return array<int, string> */
+    private function documentedMethods(): array
+    {
         preg_match_all(
             '/@method\s+static\s+\S+\s+(\w+)\(/',
             (string) (new \ReflectionClass(PuntjesFacade::class))->getDocComment(),
             $matches,
         );
-        $documented = $matches[1];
 
-        $accessors = array_map(
+        return $matches[1];
+    }
+
+    /**
+     * Only what this facade declares. `getMethods()` also returns everything public on
+     * `Illuminate\Support\Facades\Facade` (`swap`, `resolved`, `spy` and eleven more),
+     * and letting those through would excuse the SDK from documenting a method that
+     * happened to share one of their names.
+     *
+     * @return array<int, string>
+     */
+    private function facadeAccessors(): array
+    {
+        $facade = new \ReflectionClass(PuntjesFacade::class);
+
+        return array_values(array_map(
             static fn (\ReflectionMethod $method): string => $method->getName(),
-            (new \ReflectionClass(PuntjesFacade::class))->getMethods(\ReflectionMethod::IS_PUBLIC),
+            array_filter(
+                $facade->getMethods(\ReflectionMethod::IS_PUBLIC),
+                static fn (\ReflectionMethod $method): bool => $method->getDeclaringClass()->getName() === $facade->getName(),
+            ),
+        ));
+    }
+
+    /** @return array<int, string> */
+    private function clientMethods(): array
+    {
+        return array_diff(
+            array_map(
+                static fn (\ReflectionMethod $method): string => $method->getName(),
+                (new \ReflectionClass(Puntjes::class))->getMethods(\ReflectionMethod::IS_PUBLIC),
+            ),
+            // Constructors, not surface a facade forwards.
+            ['__construct', 'make', 'fromConfig'],
         );
+    }
 
-        $onClient = array_map(
-            static fn (\ReflectionMethod $method): string => $method->getName(),
-            (new \ReflectionClass(Puntjes::class))->getMethods(\ReflectionMethod::IS_PUBLIC),
-        );
+    public function test_a_negative_retry_delay_is_refused(): void
+    {
+        config()->set('puntjes.http.retry_base_delay', -1);
 
-        $missing = array_diff($onClient, $documented, $accessors, ['__construct', 'make', 'fromConfig']);
+        $this->expectException(ConfigurationException::class);
 
-        self::assertSame([], array_values($missing), 'The facade does not mention: '.implode(', ', $missing));
+        $this->app->make(Config::class);
     }
 
     public function test_the_documented_base_url_including_the_api_prefix_is_accepted(): void

@@ -93,6 +93,12 @@ and `Puntjes::client()` for the underlying SDK instance.
 
 This package sends a `User-Agent` naming itself and your Laravel version. Listing
 `User-Agent` in `http.default_headers` replaces it; any other key is sent alongside it.
+`Accept`, `Authorization` and `Content-Type` are the exceptions: the SDK sets those per
+request and its values win, so setting them here has no effect.
+
+If you published the config file under an earlier version, add the two new `http` keys to
+your copy. `mergeConfigFrom` merges only the top level, so a published `http` array
+replaces the package's whole `http` block and the new settings never appear.
 
 `PUNTJES_BASE_URL` takes the base URL exactly as the API docs state it,
 `https://puntjes.app/api/v1`. The bare host is accepted as well — the SDK keeps only

@@ -76,6 +76,10 @@ return [
     | naming itself and your Laravel version; listing `User-Agent` here replaces
     | it, and any other key is added alongside it.
     |
+    | Three keys cannot be set here, because the SDK writes them per request and
+    | its values win: `Accept`, `Authorization`, and `Content-Type` on a request
+    | that carries a body.
+    |
     */
 
     'http' => [
