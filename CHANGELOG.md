@@ -5,7 +5,7 @@ Notable changes to `puntjes/laravel`. The format follows
 [semantic versioning](https://semver.org/). From 1.0.0 that promise is the ordinary
 one: a breaking change waits for the next major, so `^1.0` is safe to pin and leave.
 
-## 1.0.0 — 2026-08-29
+## 1.0.0 — 2026-08-30
 
 The first stable release, tracking `puntjes/php-sdk` 1.0.0.
 
