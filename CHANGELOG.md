@@ -2,7 +2,49 @@
 
 Notable changes to `puntjes/laravel`. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this package follows
-[semantic versioning](https://semver.org/).
+[semantic versioning](https://semver.org/). From 1.0.0 that promise is the ordinary
+one: a breaking change waits for the next major, so `^1.0` is safe to pin and leave.
+
+## 1.0.0 — 2026-08-29
+
+The first stable release, tracking `puntjes/php-sdk` 1.0.0.
+
+### Changed
+
+- **Requires `puntjes/php-sdk` `^1.0`.** The core's 1.0.0 fixes the customer
+  registration contract: a loyalty card read from the API used to decode with a null
+  type, and a customer could not be registered without one. Nobody got that fix through
+  this package while it pinned `^0.2`. See the core's changelog for the rename an
+  upgrade needs.
+
+### Added
+
+- **`http.retry_base_delay`**, seconds before the first retry, doubling after each. The
+  core has always accepted it; this package had no key for it, so the only way to change
+  backoff was to rebind `Puntjes\Config` yourself. Binding your own PSR-18 client, which
+  is this package's documented extension point, gives no control over it at all: the
+  backoff lives in the SDK's transport, around whatever client you bind. A negative value
+  is now refused at resolution rather than reaching `usleep()` mid-retry.
+- **`http.default_headers`**, sent on every request. Same story. The package's own
+  `User-Agent` is still set, and listing `User-Agent` yourself replaces it rather than
+  being ignored.
+
+### Upgrading
+
+If you published `config/puntjes.php` under an earlier version, add `retry_base_delay`
+and `default_headers` to the `http` array in your copy, or re-publish it. Laravel merges
+a package config only at the top level, so a published `http` array replaces the
+package's whole `http` block: without the edit the two new settings are silently absent
+and `PUNTJES_RETRY_BASE_DELAY` does nothing.
+
+### Fixed
+
+- **`Puntjes::config()` is visible to an IDE and to static analysis**, for the first
+  time. It always worked through `__callStatic`, but it had never been in the facade's
+  `@method` block, so both were told it did not exist. Two tests now compare the facade's
+  documented method names against the client's real ones, in both directions, because
+  that drift is invisible at runtime: a missing line loses only tooling, and a line for a
+  method the SDK has removed still forwards to nothing.
 
 This package is Laravel wiring only — config, provider, facade and a cache-backed
 token store. Changes to the API surface itself live in

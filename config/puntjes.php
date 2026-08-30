@@ -65,18 +65,33 @@ return [
     | side effect are never retried regardless of this value — see the SDK's
     | Transport for the full policy.
     |
+    | `retry_base_delay` is how long the first backoff waits, in seconds. Each
+    | further attempt doubles it, so raising this lengthens every retry after it.
+    |
     | `timeout` and `connect_timeout` are in seconds and apply to the Guzzle
     | client this package builds. They are ignored if you bind your own PSR-18
     | client into the container.
+    |
+    | `default_headers` are sent on every request. This package sets a User-Agent
+    | naming itself and your Laravel version; listing `User-Agent` here replaces
+    | it, and any other key is added alongside it.
+    |
+    | Three keys cannot be set here, because the SDK writes them per request and
+    | its values win: `Accept`, `Authorization`, and `Content-Type` on a request
+    | that carries a body.
     |
     */
 
     'http' => [
         'retries' => (int) env('PUNTJES_RETRIES', 2),
 
+        'retry_base_delay' => (float) env('PUNTJES_RETRY_BASE_DELAY', 0.5),
+
         'timeout' => (float) env('PUNTJES_TIMEOUT', 10),
 
         'connect_timeout' => (float) env('PUNTJES_CONNECT_TIMEOUT', 5),
+
+        'default_headers' => [],
     ],
 
 ];

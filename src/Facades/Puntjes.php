@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Puntjes\Laravel\Facades;
 
 use Illuminate\Support\Facades\Facade;
+use Puntjes\Config;
 use Puntjes\Http\Response;
 use Puntjes\Model\VendorBranding;
 use Puntjes\Puntjes as Client;
@@ -31,6 +32,7 @@ use Puntjes\Resource\Wallets;
  * @method static VendorBranding me()
  * @method static bool ping()
  * @method static Response request(string $method, string $path, array $query = [], ?array $body = null)
+ * @method static Config config()
  *
  * @see Client
  */

@@ -33,14 +33,27 @@ final class PuntjesServiceProvider extends ServiceProvider
                 );
             }
 
+            $retryBaseDelay = (float) config('puntjes.http.retry_base_delay', 0.5);
+
+            if ($retryBaseDelay < 0) {
+                // The SDK does not check this one, and the failure it produces is a
+                // ValueError out of usleep() during a retry: the request path breaks
+                // exactly when it is already failing.
+                throw new ConfigurationException(
+                    'puntjes.http.retry_base_delay must not be negative, got '.$retryBaseDelay.'.',
+                );
+            }
+
             return new Config(
                 clientId: $clientId,
                 clientSecret: $clientSecret,
                 baseUrl: (string) config('puntjes.base_url'),
                 maxRetries: (int) config('puntjes.http.retries', 2),
-                defaultHeaders: [
-                    'User-Agent' => 'puntjes-laravel/'.($this->app->version()),
-                ],
+                retryBaseDelay: $retryBaseDelay,
+                defaultHeaders: array_merge(
+                    ['User-Agent' => 'puntjes-laravel/'.($this->app->version())],
+                    (array) config('puntjes.http.default_headers', []),
+                ),
             );
         });
 
