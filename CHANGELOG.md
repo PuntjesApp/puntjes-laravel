@@ -5,6 +5,16 @@ Notable changes to `puntjes/laravel`. The format follows
 [semantic versioning](https://semver.org/). From 1.0.0 that promise is the ordinary
 one: a breaking change waits for the next major, so `^1.0` is safe to pin and leave.
 
+## 1.1.0 — 2026-09-30
+
+### Changed
+
+- **Requires `puntjes/php-sdk` `^1.1`.** The core's 1.1.0 adds
+  `Redemptions::forCustomer()`, so `Puntjes::redemptions()->forCustomer($customerId,
+  RedemptionStatus::Valid)` lists the rewards a customer still has to collect. A till whose
+  customer comes without the confirmation code finds the reward that way and verifies it
+  as usual. The raised floor makes sure an app that installs this package gets the method.
+
 ## 1.0.0 — 2026-08-30
 
 The first stable release, tracking `puntjes/php-sdk` 1.0.0.
