@@ -234,6 +234,14 @@ final class ServiceProviderTest extends TestCase
         self::assertSame($this->app->make(Puntjes::class), PuntjesFacade::client());
     }
 
+    public function test_the_redemptions_group_lists_a_customers_redemptions(): void
+    {
+        self::assertTrue(
+            method_exists(PuntjesFacade::redemptions(), 'forCustomer'),
+            'puntjes/php-sdk is older than 1.1.0, the release that added Redemptions::forCustomer().',
+        );
+    }
+
     public function test_the_config_file_can_be_published(): void
     {
         $this->artisan('vendor:publish', ['--tag' => 'puntjes-config'])->assertSuccessful();
