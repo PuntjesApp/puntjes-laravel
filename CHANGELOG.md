@@ -13,7 +13,7 @@ one: a breaking change waits for the next major, so `^1.0` is safe to pin and le
   the core SDK.** The Puntjes API now refuses to email a loyalty card when earlier mail to
   the customer's address bounced or was marked as spam; nothing is queued and the
   per-customer cooldown is not spent. This package maps no error codes of its own: every
-  `ApiException` comes from `puntjes/php-sdk`, and `^1.0` already lets the code through as
+  `ApiException` comes from `puntjes/php-sdk`, and `^1.1` already lets the code through as
   `ApiException::code()`. Run `composer update puntjes/php-sdk` once the core's next release
   is out to get `ErrorCode::CustomerEmailSuppressed` on the enum, and catch it where you
   call `Puntjes::customers()->sendCard()` to ask the customer for an address that works.
