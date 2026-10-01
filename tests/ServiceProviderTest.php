@@ -4,6 +4,10 @@ declare(strict_types=1);
 
 namespace Puntjes\Laravel\Tests;
 
+use GuzzleHttp\Psr7\Response;
+use Psr\Http\Client\ClientInterface;
+use Psr\Http\Message\RequestInterface;
+use Psr\Http\Message\ResponseInterface;
 use Puntjes\Auth\TokenStore;
 use Puntjes\Config;
 use Puntjes\Exception\ConfigurationException;
@@ -240,6 +244,58 @@ final class ServiceProviderTest extends TestCase
             method_exists(PuntjesFacade::redemptions(), 'forCustomer'),
             'puntjes/php-sdk is older than 1.1.0, the release that added Redemptions::forCustomer().',
         );
+    }
+
+    /**
+     * The API sends `whole` or `whole_purchase` as a campaign's scope, both the whole purchase, and an older
+     * schedule can store Sunday as 7. The client this package builds hands both over as the API sent them.
+     */
+    public function test_a_campaign_reaches_the_app_with_either_scope_word_and_a_sunday_seven(): void
+    {
+        $this->app->instance(ClientInterface::class, new class implements ClientInterface
+        {
+            public function sendRequest(RequestInterface $request): ResponseInterface
+            {
+                $body = str_ends_with($request->getUri()->getPath(), '/oauth/token')
+                    ? ['token_type' => 'Bearer', 'expires_in' => 3600, 'access_token' => 'test-token']
+                    : ['data' => [
+                        'data' => [
+                            self::campaign(1, ['scope' => 'whole'], ['days' => [6, 7]]),
+                            self::campaign(2, ['scope' => 'whole_purchase'], ['days' => [6, 0]]),
+                        ],
+                        'links' => ['first' => null, 'last' => null, 'prev' => null, 'next' => null],
+                        'meta' => ['current_page' => 1, 'last_page' => 1, 'per_page' => 15, 'total' => 2],
+                    ]];
+
+                return new Response(200, ['Content-Type' => 'application/json'], (string) json_encode($body));
+            }
+
+            /**
+             * @param  array<string, mixed>  $config
+             * @param  array<string, mixed>  $recurrenceConfig
+             * @return array<string, mixed>
+             */
+            private static function campaign(int $id, array $config, array $recurrenceConfig): array
+            {
+                return [
+                    'id' => $id, 'name' => 'Weekend', 'family' => 'purchase', 'moment' => null,
+                    'config' => $config, 'version' => 1,
+                    'multiplier' => 2, 'recurrence_type' => 'days_of_week',
+                    'recurrence_config' => $recurrenceConfig,
+                    'schedule_summary' => 'Elk weekend', 'starts_at' => '2026-08-01', 'ends_at' => null,
+                    'status' => ['value' => 'active', 'label' => 'Actief'],
+                    'min_transaction_amount' => null,
+                    'created_at' => null, 'updated_at' => null,
+                ];
+            }
+        });
+
+        [$builderMade, $older] = PuntjesFacade::campaigns()->list()->firstPage()->items;
+
+        self::assertSame(['scope' => 'whole'], $builderMade->config);
+        self::assertSame(['days' => [6, 7]], $builderMade->recurrenceConfig);
+        self::assertSame(['scope' => 'whole_purchase'], $older->config);
+        self::assertSame(['days' => [6, 0]], $older->recurrenceConfig);
     }
 
     public function test_the_config_file_can_be_published(): void

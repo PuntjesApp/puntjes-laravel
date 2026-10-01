@@ -9,6 +9,9 @@ one: a breaking change waits for the next major, so `^1.0` is safe to pin and le
 
 ### Changed
 
+- **A campaign's `config['scope']` reaches your app as `whole` or `whole_purchase`, and both mean
+  the whole purchase.** An older `days_of_week` schedule can also carry Sunday as `7` next to `0`.
+  The client this package builds hands both over as the API sends them, and a test now pins that.
 - **The send-card refusal `CUSTOMER_EMAIL_SUPPRESSED` (422) reaches this package through
   the core SDK.** The Puntjes API now refuses to email a loyalty card when earlier mail to
   the customer's address bounced or was marked as spam; nothing is queued and the
