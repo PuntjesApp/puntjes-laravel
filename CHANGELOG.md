@@ -9,6 +9,18 @@ one: a breaking change waits for the next major, so `^1.0` is safe to pin and le
 
 ### Changed
 
+- **The error `INVALID_JSON` (400) reaches this package through the core SDK.** The Puntjes API
+  now answers it when it cannot read a request body: the JSON is cut off, or it is not valid
+  UTF-8. The API creates, changes and sends nothing, and the same body fails the same way
+  again, so the core never replays it. Before, such a body was read as empty. This package
+  maps no error codes of its own: the error arrives as the core's `ApiException`, and `^1.1`
+  already lets it through as `ApiException::code()`. Run `composer update puntjes/php-sdk`
+  once the core's next release is out to get `ErrorCode::InvalidJson` on the enum. A test
+  now pins that the error reaches your app once and untouched.
+- **Two more answers change, with no change here.** Text that is not valid UTF-8 in a query
+  value or form field now answers 422 `VALIDATION_ERROR` and names the field, so it arrives as
+  a `ValidationException`. Before, it answered 500. A path with a NUL byte or invalid UTF-8
+  now answers 404 `ROUTE_NOT_FOUND`, so it arrives as a `NotFoundException`.
 - **A campaign's `config['scope']` reaches your app as `whole` or `whole_purchase`, and both mean
   the whole purchase.** An older `days_of_week` schedule can also carry Sunday as `7` next to `0`.
   The client this package builds hands both over as the API sends them, and a test now pins that.

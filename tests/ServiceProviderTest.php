@@ -10,10 +10,12 @@ use Psr\Http\Message\RequestInterface;
 use Psr\Http\Message\ResponseInterface;
 use Puntjes\Auth\TokenStore;
 use Puntjes\Config;
+use Puntjes\Exception\ApiException;
 use Puntjes\Exception\ConfigurationException;
 use Puntjes\Laravel\CacheTokenStore;
 use Puntjes\Laravel\Facades\Puntjes as PuntjesFacade;
 use Puntjes\Puntjes;
+use Puntjes\Request\UpsertProduct;
 use Puntjes\Resource\Customers;
 use Puntjes\Resource\Products;
 use Puntjes\Resource\Vouchers;
@@ -296,6 +298,51 @@ final class ServiceProviderTest extends TestCase
         self::assertSame(['days' => [6, 7]], $builderMade->recurrenceConfig);
         self::assertSame(['scope' => 'whole_purchase'], $older->config);
         self::assertSame(['days' => [6, 0]], $older->recurrenceConfig);
+    }
+
+    /**
+     * The API answers `400 INVALID_JSON` when it cannot read a request body, and it changes nothing. This package
+     * adds no mapping of its own: the error reaches the app as the core's ApiException, and a PUT, which the core
+     * normally replays, goes out once, because the same body would fail the same way.
+     */
+    public function test_an_unreadable_body_reaches_the_app_as_an_api_exception_and_is_sent_once(): void
+    {
+        $http = new class implements ClientInterface
+        {
+            public int $apiRequests = 0;
+
+            public function sendRequest(RequestInterface $request): ResponseInterface
+            {
+                if (str_ends_with($request->getUri()->getPath(), '/oauth/token')) {
+                    return new Response(200, ['Content-Type' => 'application/json'], (string) json_encode([
+                        'token_type' => 'Bearer', 'expires_in' => 3600, 'access_token' => 'test-token',
+                    ]));
+                }
+
+                $this->apiRequests++;
+
+                return new Response(400, ['Content-Type' => 'application/json'], (string) json_encode([
+                    'error' => [
+                        'code' => 'INVALID_JSON',
+                        'message' => 'The request body is not valid JSON.',
+                        'status' => 400,
+                        'request_id' => 'req_1',
+                    ],
+                ]));
+            }
+        };
+        $this->app->instance(ClientInterface::class, $http);
+
+        try {
+            PuntjesFacade::products()->upsert('SKU-1', new UpsertProduct(name: 'Brood'));
+            self::fail('Expected an ApiException.');
+        } catch (ApiException $e) {
+            self::assertSame(ApiException::class, $e::class);
+            self::assertSame('INVALID_JSON', $e->code());
+            self::assertSame(400, $e->status());
+        }
+
+        self::assertSame(1, $http->apiRequests);
     }
 
     public function test_the_config_file_can_be_published(): void
