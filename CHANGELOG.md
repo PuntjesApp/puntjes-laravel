@@ -9,6 +9,16 @@ one: a breaking change waits for the next major, so `^1.0` is safe to pin and le
 
 ### Changed
 
+- **The statistics loyalty block gains four import fields, through the core SDK.** After a shop
+  moves its customers over from another loyalty system, the points they brought along never count
+  as issued but did count when they were spent or expired, so the redemption and breakage rates
+  could pass 1.0. The Puntjes API keeps every existing field as it was and adds
+  `points_redeemed_from_import`, `points_expired_from_import`, `redemption_rate_excluding_import`
+  and `breakage_rate_excluding_import`. This package has no statistics model of its own: the
+  answer arrives as the core's `LoyaltyStatistics`, and on `^1.1` the old fields read as before.
+  Run `composer update puntjes/php-sdk` once the core's next release is out to read the four new
+  properties, and prefer `redemptionRateExcludingImport` over `redemptionRate`. A test now pins
+  that the new answer reaches your app with the old fields unchanged.
 - **The error `INVALID_JSON` (400) reaches this package through the core SDK.** The Puntjes API
   now answers it when it cannot read a request body: the JSON is cut off, or it is not valid
   UTF-8. The API creates, changes and sends nothing, and the same body fails the same way

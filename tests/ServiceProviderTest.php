@@ -10,6 +10,7 @@ use Psr\Http\Message\RequestInterface;
 use Psr\Http\Message\ResponseInterface;
 use Puntjes\Auth\TokenStore;
 use Puntjes\Config;
+use Puntjes\Enum\Period;
 use Puntjes\Exception\ApiException;
 use Puntjes\Exception\ConfigurationException;
 use Puntjes\Laravel\CacheTokenStore;
@@ -298,6 +299,49 @@ final class ServiceProviderTest extends TestCase
         self::assertSame(['days' => [6, 7]], $builderMade->recurrenceConfig);
         self::assertSame(['scope' => 'whole_purchase'], $older->config);
         self::assertSame(['days' => [6, 0]], $older->recurrenceConfig);
+    }
+
+    /**
+     * Puntjes adds four import fields to the statistics loyalty block and keeps every other field as it was. The
+     * client this package builds still reads that answer, with the old fields unchanged, on the core it requires.
+     */
+    public function test_a_statistics_answer_with_the_import_fields_reaches_the_app_unchanged(): void
+    {
+        $this->app->instance(ClientInterface::class, new class implements ClientInterface
+        {
+            public function sendRequest(RequestInterface $request): ResponseInterface
+            {
+                $body = str_ends_with($request->getUri()->getPath(), '/oauth/token')
+                    ? ['token_type' => 'Bearer', 'expires_in' => 3600, 'access_token' => 'test-token']
+                    : ['data' => [
+                        'period' => [
+                            'preset' => '30d', 'from' => '', 'to' => '', 'timezone' => 'Europe/Brussels',
+                            'granularity' => 'daily',
+                        ],
+                        'commerce' => [
+                            'orders' => 0, 'revenue_cents' => 0, 'average_order_value_cents' => 0,
+                            'itemized' => [], 'volume_trend' => [],
+                        ],
+                        'loyalty' => [
+                            'points_issued' => 600, 'points_redeemed' => 2000, 'points_expired' => 500,
+                            'net_adjustments' => 0, 'redemption_rate' => 3.333, 'breakage_rate' => 0.8333,
+                            'points_redeemed_from_import' => 1500, 'points_expired_from_import' => 400,
+                            'redemption_rate_excluding_import' => 0.833, 'breakage_rate_excluding_import' => 0.1667,
+                        ],
+                    ]];
+
+                return new Response(200, ['Content-Type' => 'application/json'], (string) json_encode($body));
+            }
+        });
+
+        $loyalty = PuntjesFacade::statistics()->get(Period::ThirtyDays)->loyalty;
+
+        self::assertNotNull($loyalty);
+        self::assertSame(600, $loyalty->pointsIssued);
+        self::assertSame(2000, $loyalty->pointsRedeemed);
+        self::assertSame(500, $loyalty->pointsExpired);
+        self::assertSame(3.333, $loyalty->redemptionRate);
+        self::assertSame(0.8333, $loyalty->breakageRate);
     }
 
     /**
