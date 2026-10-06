@@ -345,6 +345,48 @@ final class ServiceProviderTest extends TestCase
     }
 
     /**
+     * Puntjes lets a discount count on one product and adds `product_reference` to a redemption's discount block and to
+     * a verified voucher's discount. The old fields reach the app unchanged; the voucher's item number waits for the core.
+     */
+    public function test_a_discount_on_one_product_reaches_the_app_with_its_old_fields_unchanged(): void
+    {
+        $this->app->instance(ClientInterface::class, new class implements ClientInterface
+        {
+            public function sendRequest(RequestInterface $request): ResponseInterface
+            {
+                $path = $request->getUri()->getPath();
+                $body = match (true) {
+                    str_ends_with($path, '/oauth/token') => ['token_type' => 'Bearer', 'expires_in' => 3600, 'access_token' => 'test-token'],
+                    str_ends_with($path, '/verify') => ['data' => [
+                        'voucher_code' => 'BON-KT',
+                        'discount' => ['kind' => 'percentage', 'percentage' => 20, 'product_reference' => 'KT-10234'],
+                        'valid_until' => null, 'consumed_at' => '2026-10-06T10:00:00+00:00',
+                        'campaign_id' => 4, 'kind' => 'discount', 'products' => null,
+                    ]],
+                    default => ['data' => [
+                        'redemption_id' => 12, 'confirmation_code' => 'PNTJ-KT000001', 'status' => 'valid',
+                        'reward' => ['name' => 'Thermometer korting', 'type' => 'discount'],
+                        'customer' => ['name' => 'Ada'], 'points_deducted' => 150,
+                        'redeemed_at' => '2026-10-06T10:00:00+00:00', 'verified_at' => null, 'expires_at' => null,
+                        'type_specific_data' => ['discount_value' => 20, 'discount_type' => 'percentage', 'product_reference' => 'KT-10234'],
+                    ]],
+                };
+
+                return new Response(200, ['Content-Type' => 'application/json'], (string) json_encode($body));
+            }
+        });
+
+        $voucher = PuntjesFacade::vouchers()->verify('BON-KT');
+        $redemption = PuntjesFacade::redemptions()->find('PNTJ-KT000001');
+
+        self::assertSame('percentage', $voucher->discount?->kind);
+        self::assertSame(20, $voucher->discount?->percentage);
+        self::assertSame(20, $redemption->typeSpecificData['discount_value']);
+        self::assertSame('percentage', $redemption->typeSpecificData['discount_type']);
+        self::assertSame('KT-10234', $redemption->typeSpecificData['product_reference']);
+    }
+
+    /**
      * The API answers `400 INVALID_JSON` when it cannot read a request body, and it changes nothing. This package
      * adds no mapping of its own: the error reaches the app as the core's ApiException, and a PUT, which the core
      * normally replays, goes out once, because the same body would fail the same way.

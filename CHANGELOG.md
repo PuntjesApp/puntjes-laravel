@@ -9,6 +9,19 @@ one: a breaking change waits for the next major, so `^1.0` is safe to pin and le
 
 ### Changed
 
+- **A discount can be on one product, through the core SDK.** Puntjes lets a discount reward,
+  or a campaign discount gift, count on one product instead of the whole purchase. The API adds
+  `product_reference` (the product's item number, or null for the whole purchase) to a
+  discount's `type_specific_data` on the redemption routes and to the discount of a verified
+  voucher, and a campaign's config may hold `gift.discount.product_id`. Nothing else changes.
+  This package has no model of its own for these answers: they arrive as the core's
+  `Redemption` and `VoucherVerification`, and on `^1.1` the old fields read as before, with the
+  item number already in `$redemption->typeSpecificData['product_reference']`. Run
+  `composer update puntjes/php-sdk` once the core's next release is out to read
+  `$redemption->productReference()` and `$voucher->discount?->productReference`. For a discount
+  on one product, pass `appliedTo()` the amount it counts on: that product's price, or its line
+  total if your till applies it to every unit. A test now pins that the new
+  answers reach your app with the old fields unchanged.
 - **The statistics loyalty block gains four import fields, through the core SDK.** After a shop
   moves its customers over from another loyalty system, the points they brought along never count
   as issued but did count when they were spent or expired, so the redemption and breakage rates
