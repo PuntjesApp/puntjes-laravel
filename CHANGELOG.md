@@ -21,6 +21,14 @@ one: a breaking change waits for the next major, so `^1.0` is safe to pin and le
     same body as before and is never retried.
   - Each free product of a bon carries `productReference`, the vendor's item number, copied
     when the bon was issued. It is null when the product had none.
+- **A cancelled redemption arrives through the core SDK 1.4.0, with no change here.** You get
+  it when you run `composer update puntjes/php-sdk`:
+  - `Puntjes::redemptions()->verify($code)` on a cancelled code throws `ApiException` with
+    `ErrorCode::CodeCancelled` (`CODE_CANCELLED`, 422). The shop cancelled the redemption and the
+    customer got the points back, so the till must not hand over the reward.
+  - A redemption that you read can now have `RedemptionStatus::Cancelled`.
+  - A new or changed customer whose email address another customer of the same vendor already has
+    throws `ConflictException` (`IDENTIFIER_DUPLICATE`, 409).
 
 ### Changed
 
