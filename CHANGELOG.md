@@ -7,6 +7,21 @@ one: a breaking change waits for the next major, so `^1.0` is safe to pin and le
 
 ## Unreleased
 
+### Added
+
+- **Three voucher additions arrive through the core SDK 1.4.0, with no change here.**
+  `Puntjes::vouchers()` returns the core's `Vouchers` resource, so this package gets them
+  when you run `composer update puntjes/php-sdk`:
+  - `Puntjes::vouchers()->find($code)` reads a campaign bon without spending it. It returns a
+    `VoucherLookup` with a `status` of `VoucherStatus::Valid`, `Used` or `Expired`. An expired
+    bon is an answer, not an error. An unknown code throws `NotFoundException`.
+  - `Puntjes::vouchers()->verify($code, idempotencyKey: …)` takes an optional key. The core
+    sends it only when you give one, and then retries the call safely. A repeat with the same
+    key on the same bon answers the first success again. Without a key, the call sends the
+    same body as before and is never retried.
+  - Each free product of a bon carries `productReference`, the vendor's item number, copied
+    when the bon was issued. It is null when the product had none.
+
 ### Changed
 
 - **A discount can be on one product, through the core SDK.** Puntjes lets a discount reward,
