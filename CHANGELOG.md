@@ -27,8 +27,8 @@ one: a breaking change waits for the next major, so `^1.0` is safe to pin and le
     `ErrorCode::CodeCancelled` (`CODE_CANCELLED`, 422). The shop cancelled the redemption and the
     customer got the points back, so the till must not hand over the reward.
   - A redemption that you read can now have `RedemptionStatus::Cancelled`.
-  - A new or changed customer whose email address another customer of the same vendor already has
-    throws `ConflictException` (`IDENTIFIER_DUPLICATE`, 409).
+  - The shop can also cancel a code after the till verified it. That redemption keeps its
+    `verifiedAt`, so `isVerified()` stays true. Read `status` first.
 
 ### Changed
 
@@ -78,6 +78,11 @@ one: a breaking change waits for the next major, so `^1.0` is safe to pin and le
   `ApiException::code()`. Run `composer update puntjes/php-sdk` once the core's next release
   is out to get `ErrorCode::CustomerEmailSuppressed` on the enum, and catch it where you
   call `Puntjes::customers()->sendCard()` to ask the customer for an address that works.
+- **A duplicate email address answers 409, through the core SDK.** Registering or changing a
+  customer throws `ConflictException` (`IDENTIFIER_DUPLICATE`, 409) when another customer of the
+  same vendor already has that email address, as profile email or as email identifier, a
+  deactivated customer included. Only the docs of the core changed. Run
+  `composer update puntjes/php-sdk` to read them.
 
 ## 1.1.0 — 2026-09-30
 
