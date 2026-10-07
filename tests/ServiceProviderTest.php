@@ -10,8 +10,10 @@ use Psr\Http\Message\RequestInterface;
 use Psr\Http\Message\ResponseInterface;
 use Puntjes\Auth\TokenStore;
 use Puntjes\Config;
+use Puntjes\Enum\CustomerStatus;
 use Puntjes\Enum\Period;
 use Puntjes\Exception\ApiException;
+use Puntjes\Exception\AuthenticationException;
 use Puntjes\Exception\ConfigurationException;
 use Puntjes\Laravel\CacheTokenStore;
 use Puntjes\Laravel\Facades\Puntjes as PuntjesFacade;
@@ -429,6 +431,148 @@ final class ServiceProviderTest extends TestCase
         }
 
         self::assertSame(1, $http->apiRequests);
+    }
+
+    /**
+     * Puntjes answers `401 UNAUTHENTICATED` for a token it no longer accepts. The core gets one new token and tries
+     * again, and the new token lands in the Laravel cache, so the next client in another request uses it without a grant.
+     */
+    public function test_a_refused_token_is_replaced_in_the_laravel_cache(): void
+    {
+        $http = $this->fakeApi(static fn (RequestInterface $request): array => $request->getHeaderLine('Authorization') === 'Bearer token-2'
+            ? [200, ['data' => [['id' => 3, 'name' => 'Koffie', 'type' => 'product', 'point_cost' => 100, 'remaining_stock' => 4]]]]
+            : [401, self::error('UNAUTHENTICATED', 401)]);
+
+        self::assertCount(1, PuntjesFacade::rewards()->list());
+        self::assertSame(2, $http->grants);
+        self::assertSame(2, $http->apiRequests);
+
+        $this->app->forgetInstance(Puntjes::class);
+        PuntjesFacade::clearResolvedInstances();
+        PuntjesFacade::rewards()->list();
+
+        self::assertSame(2, $http->grants);
+        self::assertSame(3, $http->apiRequests);
+    }
+
+    /**
+     * `401 INVALID_CLIENT` now means the client itself is wrong, so a new token does not fix it. The core still tries one
+     * new token, because an older Puntjes sent this code for an expired token, and then hands the code to the app.
+     */
+    public function test_an_invalid_client_reaches_the_app_after_one_new_token(): void
+    {
+        $http = $this->fakeApi(static fn (): array => [401, self::error('INVALID_CLIENT', 401)]);
+
+        try {
+            PuntjesFacade::rewards()->list();
+            self::fail('Expected an AuthenticationException.');
+        } catch (AuthenticationException $e) {
+            self::assertSame('INVALID_CLIENT', $e->code());
+            self::assertSame(401, $e->status());
+        }
+
+        self::assertSame(2, $http->grants);
+        self::assertSame(2, $http->apiRequests);
+    }
+
+    /**
+     * The API answers `415 UNSUPPORTED_MEDIA_TYPE` when a body is not JSON or a form. The core always sends JSON, so
+     * something between the app and the API changed the request. The error reaches the app once, also on a PUT.
+     */
+    public function test_an_unsupported_media_type_reaches_the_app_as_an_api_exception_and_is_sent_once(): void
+    {
+        $http = $this->fakeApi(static fn (): array => [415, self::error('UNSUPPORTED_MEDIA_TYPE', 415)]);
+
+        try {
+            PuntjesFacade::products()->upsert('SKU-1', new UpsertProduct(name: 'Brood'));
+            self::fail('Expected an ApiException.');
+        } catch (ApiException $e) {
+            self::assertSame(ApiException::class, $e::class);
+            self::assertSame('UNSUPPORTED_MEDIA_TYPE', $e->code());
+            self::assertSame(415, $e->status());
+        }
+
+        self::assertSame(1, $http->apiRequests);
+    }
+
+    /** `find()` now returns a deactivated customer, where it was a 404, and the app can tell it is deactivated. */
+    public function test_find_returns_a_deactivated_customer(): void
+    {
+        $this->fakeApi(static fn (): array => [200, ['data' => [
+            'id' => 7, 'status' => 'deactivated', 'deactivated_at' => '2026-10-01T09:00:00+00:00', 'is_deactivated' => true,
+        ]]]);
+
+        $customer = PuntjesFacade::customers()->find(7);
+
+        self::assertTrue($customer->isDeactivated);
+        self::assertSame(CustomerStatus::Deactivated, $customer->status);
+    }
+
+    /**
+     * A reward with no stock limit has `remaining_stock` 0, and Puntjes adds `is_unlimited` to say so. On a core
+     * older than 1.5.0 the app tells it from a sold-out reward by `totalStock`, which is null only for the unlimited one.
+     */
+    public function test_an_unlimited_reward_reaches_the_app_apart_from_a_sold_out_one(): void
+    {
+        $this->fakeApi(static fn (): array => [200, ['data' => [
+            ['id' => 1, 'name' => 'Koffie', 'type' => 'product', 'point_cost' => 100,
+                'total_stock' => null, 'remaining_stock' => 0, 'is_unlimited' => true],
+            ['id' => 2, 'name' => 'Taart', 'type' => 'product', 'point_cost' => 300,
+                'total_stock' => 5, 'remaining_stock' => 0, 'is_unlimited' => false],
+        ]]]);
+
+        [$unlimited, $soldOut] = PuntjesFacade::rewards()->list();
+
+        self::assertSame(0, $unlimited->remainingStock);
+        self::assertNull($unlimited->totalStock);
+        self::assertSame(0, $soldOut->remainingStock);
+        self::assertSame(5, $soldOut->totalStock);
+    }
+
+    /**
+     * Bind a PSR-18 client that grants `token-1`, `token-2`, ... and answers every API call with `$answer`.
+     *
+     * @param  callable(RequestInterface): array{0: int, 1: array<string, mixed>}  $answer
+     */
+    private function fakeApi(callable $answer): object
+    {
+        $http = new class($answer) implements ClientInterface
+        {
+            public int $grants = 0;
+
+            public int $apiRequests = 0;
+
+            /** @var callable(RequestInterface): array{0: int, 1: array<string, mixed>} */
+            private $answer;
+
+            /** @param  callable(RequestInterface): array{0: int, 1: array<string, mixed>}  $answer */
+            public function __construct(callable $answer)
+            {
+                $this->answer = $answer;
+            }
+
+            public function sendRequest(RequestInterface $request): ResponseInterface
+            {
+                if (str_ends_with($request->getUri()->getPath(), '/oauth/token')) {
+                    $this->grants++;
+                    [$status, $body] = [200, ['token_type' => 'Bearer', 'expires_in' => 3600, 'access_token' => 'token-'.$this->grants]];
+                } else {
+                    $this->apiRequests++;
+                    [$status, $body] = ($this->answer)($request);
+                }
+
+                return new Response($status, ['Content-Type' => 'application/json'], (string) json_encode($body));
+            }
+        };
+        $this->app->instance(ClientInterface::class, $http);
+
+        return $http;
+    }
+
+    /** @return array<string, mixed> */
+    private static function error(string $code, int $status): array
+    {
+        return ['error' => ['code' => $code, 'message' => $code, 'status' => $status, 'request_id' => 'req_1']];
     }
 
     public function test_the_config_file_can_be_published(): void
