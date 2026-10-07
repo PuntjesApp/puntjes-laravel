@@ -9,6 +9,23 @@ one: a breaking change waits for the next major, so `^1.0` is safe to pin and le
 
 ### Added
 
+- **The Puntjes API changes of PuntjesApp/Puntjes#1084 arrive through the core SDK 1.5.0, with
+  no change here.** This package keeps `^1.1`: it uses no code from 1.5.0. Run
+  `composer update puntjes/php-sdk` once the core's 1.5.0 is out to get the new names below.
+  - `RewardSummary::$isUnlimited` and `Reward::$isUnlimited`, from `Puntjes::rewards()->list()`
+    and `Puntjes::products()->createReward()`. A reward with no stock limit has
+    `remainingStock` 0, so a till that reads only that number shows it as sold out. Read
+    `isUnlimited` first. On an older core, `totalStock` is null for the same rewards.
+  - An optional idempotency key on `Puntjes::products()->createReward()`:
+    `new CreateRewardFromProduct(..., idempotencyKey: 'reward-SKU-1')`. With a key the core
+    retries a failed call, and a repeat with the same key, product and amounts gives back the
+    first reward. The same key with another product or amount answers
+    `IDEMPOTENCY_KEY_CONFLICT` (422). The core makes no key for you, so without one nothing
+    changes.
+  - `ErrorCode::UnsupportedMediaType` (`UNSUPPORTED_MEDIA_TYPE`, 415): the request body is not
+    JSON or a form. The core always sends JSON, so this means a proxy or a custom PSR-18
+    client you bound changed the request. It arrives as a plain `ApiException` and is never
+    retried. On `^1.1` you already read it as `ApiException::code()`.
 - **Three voucher additions arrive through the core SDK 1.4.0, with no change here.**
   `Puntjes::vouchers()` returns the core's `Vouchers` resource, so this package gets them
   when you run `composer update puntjes/php-sdk`:
@@ -32,6 +49,24 @@ one: a breaking change waits for the next major, so `^1.0` is safe to pin and le
 
 ### Changed
 
+- **A 401 now tells you what to fix, through the core SDK.** `UNAUTHENTICATED` means the token
+  is missing, expired or revoked; a new token fixes it. `INVALID_CLIENT` now means the API
+  client itself is wrong: it has no vendor, or it cannot use client credentials. A new token
+  does not fix that; fix the client in the Puntjes portal. Both arrive as
+  `AuthenticationException`. The core still gets one new token on every first 401, because
+  an older Puntjes sent `INVALID_CLIENT` for an expired token. That new token goes into the
+  Laravel cache as before, so your other workers use it without a grant of their own. Two
+  tests now pin both cases through the cache-backed token store.
+- **`Puntjes::customers()->find()` returns a deactivated customer, through the core SDK.**
+  Before, it threw `NotFoundException`. Now `isDeactivated` is true and `status` is
+  `CustomerStatus::Deactivated`; `^1.1` already reads both. `sendCard()` refuses such a
+  customer with `CUSTOMER_DEACTIVATED` (422), where it answered 404. An anonymized customer
+  is still not found.
+- **`codeValidForHours` on `CreateRewardFromProduct` stops at 87600 (ten years).** A larger
+  value, or an `availableUntil` before `availableFrom`, answers 422 `VALIDATION_ERROR`.
+- Tests now pin that a 415 reaches your app once, that a deactivated customer from `find()`
+  reads as deactivated, and that an unlimited reward differs from a sold-out one by
+  `totalStock` on the core this package requires.
 - **A discount can be on one product, through the core SDK.** Puntjes lets a discount reward,
   or a campaign discount gift, count on one product instead of the whole purchase. The API adds
   `product_reference` (the product's item number, or null for the whole purchase) to a
