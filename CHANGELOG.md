@@ -49,6 +49,28 @@ one: a breaking change waits for the next major, so `^1.0` is safe to pin and le
 
 ### Changed
 
+- **Merged customers arrive through the core SDK, with no change here.** Puntjes lets a shop
+  merge two accounts of the same person (PuntjesApp/Puntjes#1105). One account stays and the
+  other closes. No route, field or shape changed, and this package keeps `^1.1`: every answer
+  below already reaches your app on the core it requires. The core's 1.6.0
+  (PuntjesApp/puntjes-php-sdk#28) names the code in the docblocks of the wallet methods.
+  - `Puntjes::wallets()->adjust()` on a merged customer throws `ApiException` with
+    `CUSTOMER_DEACTIVATED` (422) for a new idempotency key. A retry with a key used before the
+    merge still returns that adjustment. A deactivated customer the shop did not merge keeps
+    today's answers.
+  - `Puntjes::wallets()->applePass()` and `googlePassUrl()` on a merged customer throw the same
+    `CUSTOMER_DEACTIVATED` (422).
+  - An adjustment's idempotency key also matches the adjustments of the accounts merged into
+    the customer. A replay can then return the closed account's entry, with that account's
+    `walletId` and `runningBalance`. The same key with another amount answers
+    `IDEMPOTENCY_KEY_CONFLICT` (422).
+  - A lookup of the closed account answers like any deactivated customer: `isDeactivated` is
+    true and `walletBalance` is 0. Its active loyalty cards now find the account that stays.
+    Its email address answers `CUSTOMER_NOT_FOUND` (404) when the account that stays has its
+    own email address. When both accounts had an external id, the closed account keeps its own,
+    and `updateByExternalId()` with it answers `EXTERNAL_ID_NOT_FOUND` (404).
+  - Two tests pin that the 422 reaches your app once, on the adjustment and on both pass
+    methods, through the facade.
 - **A 401 now tells you what to fix, through the core SDK.** `UNAUTHENTICATED` means the token
   is missing, expired or revoked; a new token fixes it. `INVALID_CLIENT` now means the API
   client itself is wrong: it has no vendor, or it cannot use client credentials. A new token
