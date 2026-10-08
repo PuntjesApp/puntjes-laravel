@@ -529,6 +529,25 @@ final class ServiceProviderTest extends TestCase
         self::assertSame(5, $soldOut->totalStock);
     }
 
+    public function test_a_rewards_discount_kind_reaches_the_app_before_the_redemption(): void
+    {
+        $this->fakeApi(static fn (): array => [200, ['data' => [
+            ['id' => 1, 'name' => 'Tien procent', 'type' => 'discount', 'point_cost' => 100,
+                'total_stock' => null, 'remaining_stock' => 0, 'is_unlimited' => true,
+                'discount_type' => 'percentage', 'discount_value' => 10],
+            ['id' => 2, 'name' => 'Vijf euro', 'type' => 'discount', 'point_cost' => 200,
+                'total_stock' => null, 'remaining_stock' => 0, 'is_unlimited' => true,
+                'discount_type' => 'fixed_amount', 'discount_value' => 500],
+        ]]]);
+
+        [$percentage, $fixed] = PuntjesFacade::rewards()->list();
+
+        self::assertTrue($percentage->isPercentageDiscount());
+        self::assertSame(10, $percentage->discountValue);
+        self::assertTrue($fixed->isFixedAmountDiscount());
+        self::assertSame(500, $fixed->discountValue);
+    }
+
     /**
      * Bind a PSR-18 client that grants `token-1`, `token-2`, ... and answers every API call with `$answer`.
      *

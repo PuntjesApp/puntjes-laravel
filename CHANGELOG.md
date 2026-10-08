@@ -9,6 +9,13 @@ one: a breaking change waits for the next major, so `^1.0` is safe to pin and le
 
 ### Added
 
+- **A discount's kind and size arrive through the next core SDK release after 1.5.0, with no
+  change here.** It follows PuntjesApp/Puntjes#1112: each reward of
+  `Puntjes::rewards()->list()` carries `discountType` (`percentage` or `fixed_amount`) and
+  `discountValue` (a percentage as a whole number, a fixed amount in cents), with
+  `isPercentageDiscount()` and `isFixedAmountDiscount()`, so a till can decide before it redeems a
+  discount. Run `composer update puntjes/php-sdk` once that release is out. This package keeps
+  `^1.1`. A test pins the fields through the facade; it passes once the core release is installed.
 - **The Puntjes API changes of PuntjesApp/Puntjes#1084 arrive through the core SDK 1.5.0, with
   no change here.** This package keeps `^1.1`: it uses no code from 1.5.0. Run
   `composer update puntjes/php-sdk` once the core's 1.5.0 is out to get the new names below.
