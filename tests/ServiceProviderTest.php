@@ -529,6 +529,31 @@ final class ServiceProviderTest extends TestCase
         self::assertSame(5, $soldOut->totalStock);
     }
 
+    public function test_a_customers_open_vouchers_reach_the_app_with_their_shops(): void
+    {
+        $path = null;
+        $http = $this->fakeApi(static function (RequestInterface $request) use (&$path): array {
+            $path = $request->getUri()->getPath();
+
+            return [200, ['data' => [
+                ['voucher_code' => 'BON-WEB', 'campaign_id' => 5, 'kind' => 'discount',
+                    'discount' => ['kind' => 'percentage', 'percentage' => 15, 'product_reference' => null],
+                    'products' => null, 'valid_until' => '2026-10-12',
+                    'branches' => [['external_id' => 'webshop', 'name' => 'Webshop', 'type' => 'online']]],
+            ]]];
+        });
+
+        $vouchers = PuntjesFacade::vouchers()->forCustomer(42);
+
+        self::assertSame(1, $http->apiRequests);
+        self::assertSame('/api/v1/customers/42/vouchers', $path);
+        self::assertCount(1, $vouchers);
+        self::assertSame('BON-WEB', $vouchers[0]->voucherCode);
+        self::assertSame('2026-10-12', $vouchers[0]->validUntil);
+        self::assertTrue($vouchers[0]->isSpendableAt('webshop'));
+        self::assertFalse($vouchers[0]->isSpendableAt('centrum'));
+    }
+
     /**
      * Bind a PSR-18 client that grants `token-1`, `token-2`, ... and answers every API call with `$answer`.
      *
