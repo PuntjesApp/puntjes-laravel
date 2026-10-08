@@ -18,6 +18,7 @@ use Puntjes\Exception\ConfigurationException;
 use Puntjes\Laravel\CacheTokenStore;
 use Puntjes\Laravel\Facades\Puntjes as PuntjesFacade;
 use Puntjes\Puntjes;
+use Puntjes\Request\AdjustWallet;
 use Puntjes\Request\UpsertProduct;
 use Puntjes\Resource\Customers;
 use Puntjes\Resource\Products;
@@ -506,6 +507,45 @@ final class ServiceProviderTest extends TestCase
 
         self::assertTrue($customer->isDeactivated);
         self::assertSame(CustomerStatus::Deactivated, $customer->status);
+    }
+
+    /**
+     * A shop can merge two accounts of one person, and the closed account answers `422 CUSTOMER_DEACTIVATED` on a
+     * wallet adjustment. The refusal reaches the app once, although the adjustment carries a key the core may replay.
+     */
+    public function test_an_adjustment_of_a_merged_customer_reaches_the_app_once(): void
+    {
+        $http = $this->fakeApi(static fn (): array => [422, self::error('CUSTOMER_DEACTIVATED', 422)]);
+
+        try {
+            PuntjesFacade::wallets()->adjust(7, AdjustWallet::credit(100, 'Goodwill', 'adjust-1'));
+            self::fail('Expected an ApiException.');
+        } catch (ApiException $e) {
+            self::assertSame(ApiException::class, $e::class);
+            self::assertSame('CUSTOMER_DEACTIVATED', $e->code());
+            self::assertSame(422, $e->status());
+        }
+
+        self::assertSame(1, $http->apiRequests);
+    }
+
+    /** The wallet pass of a merged customer answers `422 CUSTOMER_DEACTIVATED`, on both platforms, and is sent once. */
+    public function test_a_wallet_pass_of_a_merged_customer_reaches_the_app_once(): void
+    {
+        $http = $this->fakeApi(static fn (): array => [422, self::error('CUSTOMER_DEACTIVATED', 422)]);
+
+        foreach (['applePass', 'googlePassUrl'] as $method) {
+            try {
+                PuntjesFacade::wallets()->{$method}(7);
+                self::fail('Expected an ApiException.');
+            } catch (ApiException $e) {
+                self::assertSame(ApiException::class, $e::class);
+                self::assertSame('CUSTOMER_DEACTIVATED', $e->code());
+                self::assertSame(422, $e->status());
+            }
+        }
+
+        self::assertSame(2, $http->apiRequests);
     }
 
     /**
