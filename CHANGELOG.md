@@ -52,8 +52,11 @@ one: a breaking change waits for the next major, so `^1.0` is safe to pin and le
 - **Merged customers arrive through the core SDK, with no change here.** Puntjes lets a shop
   merge two accounts of the same person (PuntjesApp/Puntjes#1105). One account stays and the
   other closes. No route, field or shape changed, and this package keeps `^1.1`: every answer
-  below already reaches your app on the core it requires. The core's 1.6.0
+  below already reaches your app on the core it requires. The core's next release
   (PuntjesApp/puntjes-php-sdk#28) names the code in the docblocks of the wallet methods.
+  Merging is behind a per-shop switch in Puntjes, so these answers appear only for shops where
+  it is on. After a merge, the account that stays can carry an older `customerSince`, and a
+  minor's marketing consent can be withdrawn.
   - `Puntjes::wallets()->adjust()` on a merged customer throws `ApiException` with
     `CUSTOMER_DEACTIVATED` (422) for a new idempotency key. A retry with a key used before the
     merge still returns that adjustment. A deactivated customer the shop did not merge keeps
