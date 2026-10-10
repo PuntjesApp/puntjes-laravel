@@ -149,7 +149,7 @@ test rather than mocking them away.
 ## Requirements
 
 - PHP 8.2+
-- Laravel 11, 12 or 13
+- Laravel 12 or 13
 
 The core SDK targets PHP 8.1 so it can reach older WooCommerce hosts; this package
 tracks Laravel's own floor instead.

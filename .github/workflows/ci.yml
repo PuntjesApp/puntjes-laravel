@@ -1,0 +1,85 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  # One leg per PHP version the package supports, plus the oldest dependencies composer.json allows.
+  # The oldest leg installs core SDK 1.1.0, so it skips the tests of fields that need a newer core.
+  # Pint runs on one leg, at an exact version: its rules move between releases, and composer.lock is not
+  # committed. A newer Pint is a reviewed change to this pin, never a red check on an unrelated PR.
+  test:
+    name: PHP ${{ matrix.php }} (${{ matrix.dependencies }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - php: '8.2'
+            dependencies: lowest
+          - php: '8.2'
+            dependencies: highest
+          - php: '8.4'
+            dependencies: highest
+            format: true
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # 2.37.2
+        with:
+          php-version: ${{ matrix.php }}
+          coverage: none
+
+      - name: Install dependencies
+        env:
+          DEPENDENCIES: ${{ matrix.dependencies }}
+        run: |
+          if [ "$DEPENDENCIES" = lowest ]; then
+            composer update --no-interaction --no-progress --prefer-dist --prefer-lowest --prefer-stable
+          else
+            composer update --no-interaction --no-progress --prefer-dist
+          fi
+
+      - name: PHPUnit
+        env:
+          DEPENDENCIES: ${{ matrix.dependencies }}
+        run: |
+          if [ "$DEPENDENCIES" = lowest ]; then
+            vendor/bin/phpunit --exclude-group needs-core-1.6
+          else
+            vendor/bin/phpunit
+          fi
+
+      - name: PHPStan
+        run: vendor/bin/phpstan analyse --no-progress
+
+      - name: Pint
+        if: matrix.format
+        run: |
+          composer require --dev --no-interaction --no-progress --update-with-dependencies laravel/pint:1.32.1
+          vendor/bin/pint --test
+
+  # The one check branch protection requires, so a change to the matrix never edits the protection.
+  ci:
+    name: CI
+    needs: test
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Every leg passed
+        env:
+          RESULT: ${{ needs.test.result }}
+        run: test "$RESULT" = success
