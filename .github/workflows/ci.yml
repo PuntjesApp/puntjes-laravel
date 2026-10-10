@@ -20,7 +20,7 @@ jobs:
   # Pint runs on one leg, at an exact version: its rules move between releases, and composer.lock is not
   # committed. A newer Pint is a reviewed change to this pin, never a red check on an unrelated PR.
   test:
-    name: PHP ${{ matrix.php }} (${{ matrix.dependencies }})
+    name: PHP ${{ matrix.php }} · ${{ matrix.dependencies == 'lowest' && 'oldest allowed packages' || 'newest packages' }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     strategy:
