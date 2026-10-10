@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Puntjes\Laravel\Tests;
 
 use GuzzleHttp\Psr7\Response;
+use PHPUnit\Framework\Attributes\Group;
 use Psr\Http\Client\ClientInterface;
 use Psr\Http\Message\RequestInterface;
 use Psr\Http\Message\ResponseInterface;
@@ -18,6 +19,7 @@ use Puntjes\Exception\ConfigurationException;
 use Puntjes\Laravel\CacheTokenStore;
 use Puntjes\Laravel\Facades\Puntjes as PuntjesFacade;
 use Puntjes\Puntjes;
+use Puntjes\Request\AdjustWallet;
 use Puntjes\Request\UpsertProduct;
 use Puntjes\Resource\Customers;
 use Puntjes\Resource\Products;
@@ -509,6 +511,45 @@ final class ServiceProviderTest extends TestCase
     }
 
     /**
+     * A shop can merge two accounts of one person, and the closed account answers `422 CUSTOMER_DEACTIVATED` on a
+     * wallet adjustment. The refusal reaches the app once, although the adjustment carries a key the core may replay.
+     */
+    public function test_an_adjustment_of_a_merged_customer_reaches_the_app_once(): void
+    {
+        $http = $this->fakeApi(static fn (): array => [422, self::error('CUSTOMER_DEACTIVATED', 422)]);
+
+        try {
+            PuntjesFacade::wallets()->adjust(7, AdjustWallet::credit(100, 'Goodwill', 'adjust-1'));
+            self::fail('Expected an ApiException.');
+        } catch (ApiException $e) {
+            self::assertSame(ApiException::class, $e::class);
+            self::assertSame('CUSTOMER_DEACTIVATED', $e->code());
+            self::assertSame(422, $e->status());
+        }
+
+        self::assertSame(1, $http->apiRequests);
+    }
+
+    /** The wallet pass of a merged customer answers `422 CUSTOMER_DEACTIVATED`, on both platforms, and is sent once. */
+    public function test_a_wallet_pass_of_a_merged_customer_reaches_the_app_once(): void
+    {
+        $http = $this->fakeApi(static fn (): array => [422, self::error('CUSTOMER_DEACTIVATED', 422)]);
+
+        foreach (['applePass', 'googlePassUrl'] as $method) {
+            try {
+                PuntjesFacade::wallets()->{$method}(7);
+                self::fail('Expected an ApiException.');
+            } catch (ApiException $e) {
+                self::assertSame(ApiException::class, $e::class);
+                self::assertSame('CUSTOMER_DEACTIVATED', $e->code());
+                self::assertSame(422, $e->status());
+            }
+        }
+
+        self::assertSame(2, $http->apiRequests);
+    }
+
+    /**
      * A reward with no stock limit has `remaining_stock` 0, and Puntjes adds `is_unlimited` to say so. On a core
      * older than 1.5.0 the app tells it from a sold-out reward by `totalStock`, which is null only for the unlimited one.
      */
@@ -529,6 +570,7 @@ final class ServiceProviderTest extends TestCase
         self::assertSame(5, $soldOut->totalStock);
     }
 
+    #[Group('needs-newer-core')]
     public function test_a_customers_open_vouchers_reach_the_app_with_their_shops(): void
     {
         $path = null;
@@ -552,6 +594,48 @@ final class ServiceProviderTest extends TestCase
         self::assertSame('2026-10-12', $vouchers[0]->validUntil);
         self::assertTrue($vouchers[0]->isSpendableAt('webshop'));
         self::assertFalse($vouchers[0]->isSpendableAt('centrum'));
+    }
+
+    #[Group('needs-newer-core')]
+    public function test_a_rewards_discount_kind_reaches_the_app_before_the_redemption(): void
+    {
+        $this->fakeApi(static fn (): array => [200, ['data' => [
+            ['id' => 1, 'name' => 'Tien procent', 'type' => 'discount', 'point_cost' => 100,
+                'total_stock' => null, 'remaining_stock' => 0, 'is_unlimited' => true,
+                'discount_type' => 'percentage', 'discount_value' => 10],
+            ['id' => 2, 'name' => 'Vijf euro', 'type' => 'discount', 'point_cost' => 200,
+                'total_stock' => null, 'remaining_stock' => 0, 'is_unlimited' => true,
+                'discount_type' => 'fixed_amount', 'discount_value' => 500],
+        ]]]);
+
+        [$percentage, $fixed] = PuntjesFacade::rewards()->list();
+
+        self::assertTrue($percentage->isPercentageDiscount());
+        self::assertSame(10, $percentage->discountValue);
+        self::assertTrue($fixed->isFixedAmountDiscount());
+        self::assertSame(500, $fixed->discountValue);
+    }
+
+    #[Group('needs-newer-core')]
+    public function test_a_rewards_limit_per_customer_reaches_the_app_before_the_redemption(): void
+    {
+        $query = null;
+        $this->fakeApi(static function (RequestInterface $request) use (&$query): array {
+            $query = $request->getUri()->getQuery();
+
+            return [200, ['data' => [
+                ['id' => 1, 'name' => 'Koffie', 'type' => 'free_product', 'point_cost' => 100,
+                    'total_stock' => null, 'remaining_stock' => 0, 'is_unlimited' => true,
+                    'max_redemptions_per_customer' => 3, 'customer_redemptions' => 1],
+            ]]];
+        });
+
+        [$reward] = PuntjesFacade::rewards()->list(countRedemptionsFor: 'CARD-1');
+
+        self::assertSame('identifier=CARD-1', $query);
+        self::assertSame(3, $reward->maxRedemptionsPerCustomer);
+        self::assertSame(1, $reward->customerRedemptions);
+        self::assertSame(2, $reward->redemptionsLeft());
     }
 
     /**
