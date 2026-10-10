@@ -5,7 +5,7 @@ Notable changes to `puntjes/laravel`. The format follows
 [semantic versioning](https://semver.org/). From 1.0.0 that promise is the ordinary
 one: a breaking change waits for the next major, so `^1.0` is safe to pin and leave.
 
-## Unreleased
+## 1.1.0 — 2026-10-10
 
 ### Removed
 
