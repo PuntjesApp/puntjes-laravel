@@ -39,7 +39,7 @@ one: a breaking change waits for the next major, so `^1.0` is safe to pin and le
     JSON or a form. The core always sends JSON, so this means a proxy or a custom PSR-18
     client you bound changed the request. It arrives as a plain `ApiException` and is never
     retried. On `^1.1` you already read it as `ApiException::code()`.
-- **Three voucher additions arrive through the core SDK 1.4.0, with no change here.**
+- **Three voucher additions arrive through the core SDK 1.5.0, with no change here.**
   `Puntjes::vouchers()` returns the core's `Vouchers` resource, so this package gets them
   when you run `composer update puntjes/php-sdk`:
   - `Puntjes::vouchers()->find($code)` reads a campaign bon without spending it. It returns a
@@ -51,7 +51,7 @@ one: a breaking change waits for the next major, so `^1.0` is safe to pin and le
     same body as before and is never retried.
   - Each free product of a bon carries `productReference`, the vendor's item number, copied
     when the bon was issued. It is null when the product had none.
-- **A cancelled redemption arrives through the core SDK 1.4.0, with no change here.** You get
+- **A cancelled redemption arrives through the core SDK 1.5.0, with no change here.** You get
   it when you run `composer update puntjes/php-sdk`:
   - `Puntjes::redemptions()->verify($code)` on a cancelled code throws `ApiException` with
     `ErrorCode::CodeCancelled` (`CODE_CANCELLED`, 422). The shop cancelled the redemption and the
@@ -158,6 +158,9 @@ one: a breaking change waits for the next major, so `^1.0` is safe to pin and le
   `composer update puntjes/php-sdk` to read them.
 
 ## 1.1.0 — 2026-09-30
+
+Not tagged, so Packagist does not offer it: the newest tag is v1.0.0. This change ships with
+the next tagged release.
 
 ### Changed
 
