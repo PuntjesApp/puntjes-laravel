@@ -7,27 +7,33 @@ one: a breaking change waits for the next major, so `^1.0` is safe to pin and le
 
 ## Unreleased
 
+### Removed
+
+- **Laravel 11.** This package now needs Laravel 12 or 13. Laravel 11 gets no security fixes any more,
+  and Composer refuses to install any of its releases because of open security advisories. On
+  Laravel 11, Composer keeps the version of this package you have.
+
 ### Added
 
-- **A reward's limit per customer arrives through the next core SDK release after 1.5.0, with no
-  change here.** It follows PuntjesApp/Puntjes#1168: each reward of `Puntjes::rewards()->list()`
-  carries `maxRedemptionsPerCustomer` (null means no limit) and `customerRedemptions` (how often the
-  named customer redeemed it, cancelled ones left out), with `redemptionsLeft()`.
+- **A reward's limit per customer arrives through the core SDK 1.7.0, with no change here.** It
+  follows PuntjesApp/Puntjes#1168: each reward of `Puntjes::rewards()->list()` carries
+  `maxRedemptionsPerCustomer` (null means no limit) and `customerRedemptions` (how often the named
+  customer redeemed it, cancelled ones left out), with `redemptionsLeft()`.
   `Puntjes::rewards()->list(countRedemptionsFor: 'CARD-1')` names the customer without the
   affordable filter. `CreateRewardFromProduct` takes `maxRedemptionsPerCustomer`, and a redemption
   past the limit throws `ApiException` with `REDEMPTION_LIMIT_REACHED` (422). Run
-  `composer update puntjes/php-sdk` once that release is out. This package keeps `^1.1`. A test
-  pins the fields and the query through the facade; it passes once the core release is installed.
-- **A discount's kind and size arrive through the next core SDK release after 1.5.0, with no
-  change here.** It follows PuntjesApp/Puntjes#1112: each reward of
+  `composer update puntjes/php-sdk` to get it. This package keeps `^1.1`. A test pins the fields
+  and the query through the facade on core 1.7.0 and newer.
+- **A discount's kind and size arrive through the core SDK 1.6.0, with no change
+  here.** It follows PuntjesApp/Puntjes#1112: each reward of
   `Puntjes::rewards()->list()` carries `discountType` (`percentage` or `fixed_amount`) and
   `discountValue` (a percentage as a whole number, a fixed amount in cents), with
   `isPercentageDiscount()` and `isFixedAmountDiscount()`, so a till can decide before it redeems a
-  discount. Run `composer update puntjes/php-sdk` once that release is out. This package keeps
-  `^1.1`. A test pins the fields through the facade; it passes once the core release is installed.
+  discount. Run `composer update puntjes/php-sdk` to get them. This package keeps `^1.1`.
+  A test pins the fields through the facade on core 1.6.0 and newer.
 - **The Puntjes API changes of PuntjesApp/Puntjes#1084 arrive through the core SDK 1.5.0, with
   no change here.** This package keeps `^1.1`: it uses no code from 1.5.0. Run
-  `composer update puntjes/php-sdk` once the core's 1.5.0 is out to get the new names below.
+  `composer update puntjes/php-sdk` to core 1.5.0 or newer to get the new names below.
   - `RewardSummary::$isUnlimited` and `Reward::$isUnlimited`, from `Puntjes::rewards()->list()`
     and `Puntjes::products()->createReward()`. A reward with no stock limit has
     `remainingStock` 0, so a till that reads only that number shows it as sold out. Read
@@ -42,7 +48,7 @@ one: a breaking change waits for the next major, so `^1.0` is safe to pin and le
     JSON or a form. The core always sends JSON, so this means a proxy or a custom PSR-18
     client you bound changed the request. It arrives as a plain `ApiException` and is never
     retried. On `^1.1` you already read it as `ApiException::code()`.
-- **Three voucher additions arrive through the core SDK 1.4.0, with no change here.**
+- **Three voucher additions arrive through the core SDK 1.5.0, with no change here.**
   `Puntjes::vouchers()` returns the core's `Vouchers` resource, so this package gets them
   when you run `composer update puntjes/php-sdk`:
   - `Puntjes::vouchers()->find($code)` reads a campaign bon without spending it. It returns a
@@ -54,7 +60,7 @@ one: a breaking change waits for the next major, so `^1.0` is safe to pin and le
     same body as before and is never retried.
   - Each free product of a bon carries `productReference`, the vendor's item number, copied
     when the bon was issued. It is null when the product had none.
-- **A cancelled redemption arrives through the core SDK 1.4.0, with no change here.** You get
+- **A cancelled redemption arrives through the core SDK 1.5.0, with no change here.** You get
   it when you run `composer update puntjes/php-sdk`:
   - `Puntjes::redemptions()->verify($code)` on a cancelled code throws `ApiException` with
     `ErrorCode::CodeCancelled` (`CODE_CANCELLED`, 422). The shop cancelled the redemption and the
@@ -68,7 +74,7 @@ one: a breaking change waits for the next major, so `^1.0` is safe to pin and le
 - **Merged customers arrive through the core SDK, with no change here.** Puntjes lets a shop
   merge two accounts of the same person (PuntjesApp/Puntjes#1105). One account stays and the
   other closes. No route, field or shape changed, and this package keeps `^1.1`: every answer
-  below already reaches your app on the core it requires. The core's next release
+  below already reaches your app on the core it requires. The core's 1.6.0
   (PuntjesApp/puntjes-php-sdk#28) names the code in the docblocks of the wallet methods.
   Merging is behind a per-shop switch in Puntjes, so these answers appear only for shops where
   it is on. After a merge, the account that stays can carry an older `customerSince`, and a
@@ -116,7 +122,7 @@ one: a breaking change waits for the next major, so `^1.0` is safe to pin and le
   This package has no model of its own for these answers: they arrive as the core's
   `Redemption` and `VoucherVerification`, and on `^1.1` the old fields read as before, with the
   item number already in `$redemption->typeSpecificData['product_reference']`. Run
-  `composer update puntjes/php-sdk` once the core's next release is out to read
+  `composer update puntjes/php-sdk` to core 1.3.0 or newer to read
   `$redemption->productReference()` and `$voucher->discount?->productReference`. For a discount
   on one product, pass `appliedTo()` the amount it counts on: that product's price, or its line
   total if your till applies it to every unit. A test now pins that the new
@@ -128,7 +134,7 @@ one: a breaking change waits for the next major, so `^1.0` is safe to pin and le
   `points_redeemed_from_import`, `points_expired_from_import`, `redemption_rate_excluding_import`
   and `breakage_rate_excluding_import`. This package has no statistics model of its own: the
   answer arrives as the core's `LoyaltyStatistics`, and on `^1.1` the old fields read as before.
-  Run `composer update puntjes/php-sdk` once the core's next release is out to read the four new
+  Run `composer update puntjes/php-sdk` to core 1.2.0 or newer to read the four new
   properties, and prefer `redemptionRateExcludingImport` over `redemptionRate`. A test now pins
   that the new answer reaches your app with the old fields unchanged.
 - **The error `INVALID_JSON` (400) reaches this package through the core SDK.** The Puntjes API
@@ -137,7 +143,7 @@ one: a breaking change waits for the next major, so `^1.0` is safe to pin and le
   again, so the core never replays it. Before, such a body was read as empty. This package
   maps no error codes of its own: the error arrives as the core's `ApiException`, and `^1.1`
   already lets it through as `ApiException::code()`. Run `composer update puntjes/php-sdk`
-  once the core's next release is out to get `ErrorCode::InvalidJson` on the enum. A test
+  to core 1.2.0 or newer to get `ErrorCode::InvalidJson` on the enum. A test
   now pins that the error reaches your app once and untouched.
 - **Two more answers change, with no change here.** Text that is not valid UTF-8 in a query
   value or form field now answers 422 `VALIDATION_ERROR` and names the field, so it arrives as
@@ -151,8 +157,8 @@ one: a breaking change waits for the next major, so `^1.0` is safe to pin and le
   the customer's address bounced or was marked as spam; nothing is queued and the
   per-customer cooldown is not spent. This package maps no error codes of its own: every
   `ApiException` comes from `puntjes/php-sdk`, and `^1.1` already lets the code through as
-  `ApiException::code()`. Run `composer update puntjes/php-sdk` once the core's next release
-  is out to get `ErrorCode::CustomerEmailSuppressed` on the enum, and catch it where you
+  `ApiException::code()`. Run `composer update puntjes/php-sdk` to core 1.2.0 or newer
+  to get `ErrorCode::CustomerEmailSuppressed` on the enum, and catch it where you
   call `Puntjes::customers()->sendCard()` to ask the customer for an address that works.
 - **A duplicate email address answers 409, through the core SDK.** Registering or changing a
   customer throws `ConflictException` (`IDENTIFIER_DUPLICATE`, 409) when another customer of the
@@ -161,6 +167,9 @@ one: a breaking change waits for the next major, so `^1.0` is safe to pin and le
   `composer update puntjes/php-sdk` to read them.
 
 ## 1.1.0 — 2026-09-30
+
+Not tagged, so Packagist does not offer it: the newest tag is v1.0.0. This change ships with
+the next tagged release.
 
 ### Changed
 

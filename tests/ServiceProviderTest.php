@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Puntjes\Laravel\Tests;
 
 use GuzzleHttp\Psr7\Response;
+use PHPUnit\Framework\Attributes\Group;
 use Psr\Http\Client\ClientInterface;
 use Psr\Http\Message\RequestInterface;
 use Psr\Http\Message\ResponseInterface;
@@ -569,6 +570,7 @@ final class ServiceProviderTest extends TestCase
         self::assertSame(5, $soldOut->totalStock);
     }
 
+    #[Group('needs-newer-core')]
     public function test_a_rewards_discount_kind_reaches_the_app_before_the_redemption(): void
     {
         $this->fakeApi(static fn (): array => [200, ['data' => [
@@ -588,6 +590,7 @@ final class ServiceProviderTest extends TestCase
         self::assertSame(500, $fixed->discountValue);
     }
 
+    #[Group('needs-newer-core')]
     public function test_a_rewards_limit_per_customer_reaches_the_app_before_the_redemption(): void
     {
         $query = null;
