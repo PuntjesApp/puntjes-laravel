@@ -179,6 +179,39 @@ composer update puntjes/php-sdk
 
 Revert `composer.json` before committing.
 
+### Checks on a pull request
+
+Every pull request and every push to `main` runs PHPUnit, PHPStan and Pint in three runs:
+
+| Run | What it installs | What it proves |
+|---|---|---|
+| `PHP 8.2 · oldest allowed packages` | The oldest version of every package that `composer.json` allows, including core SDK 1.1.0 | The lower bounds in `composer.json` are true |
+| `PHP 8.2 · newest packages` | The newest versions that install on PHP 8.2 | The package works on its lowest PHP version today |
+| `PHP 8.4 · newest packages` | The newest versions of everything | The package works on a current PHP |
+
+The same PHP version appears twice on purpose: the two runs differ in the package versions,
+not in PHP. Pint runs once, on PHP 8.4, at a fixed version, so a new Pint release never
+turns an unrelated pull request red.
+
+The oldest run skips the tests in the group `needs-newer-core`. Those tests pin fields that a
+newer core SDK adds, and they reach your app through the facade with no change in this
+package. The other two runs execute them.
+
+The check named `CI` is green only when all three runs are green. `main` requires that one
+check, so a pull request cannot merge while a run is red.
+
+### Releasing
+
+1. Write what changed under `## Unreleased` in `CHANGELOG.md`, in the pull request that
+   makes the change.
+2. In GitHub, open **Actions → Release → Run workflow** on `main`, and choose **patch**,
+   **minor** or **major**.
+
+The workflow runs the three checks again, renames `## Unreleased` to the new version with
+today's date, commits that to `main`, tags it, creates the GitHub Release with that section
+as its notes, and waits until Packagist serves the new version. It stops before it changes
+anything when a check is red or when `## Unreleased` is missing or empty.
+
 ## License
 
 MIT.
