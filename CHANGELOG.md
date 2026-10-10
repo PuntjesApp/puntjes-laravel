@@ -15,6 +15,15 @@ one: a breaking change waits for the next major, so `^1.0` is safe to pin and le
 
 ### Added
 
+- **A reward's limit per customer arrives through the core SDK 1.7.0, with no change here.** It
+  follows PuntjesApp/Puntjes#1168: each reward of `Puntjes::rewards()->list()` carries
+  `maxRedemptionsPerCustomer` (null means no limit) and `customerRedemptions` (how often the named
+  customer redeemed it, cancelled ones left out), with `redemptionsLeft()`.
+  `Puntjes::rewards()->list(countRedemptionsFor: 'CARD-1')` names the customer without the
+  affordable filter. `CreateRewardFromProduct` takes `maxRedemptionsPerCustomer`, and a redemption
+  past the limit throws `ApiException` with `REDEMPTION_LIMIT_REACHED` (422). Run
+  `composer update puntjes/php-sdk` to get it. This package keeps `^1.1`. A test pins the fields
+  and the query through the facade on core 1.7.0 and newer.
 - **A discount's kind and size arrive through the core SDK 1.6.0, with no change
   here.** It follows PuntjesApp/Puntjes#1112: each reward of
   `Puntjes::rewards()->list()` carries `discountType` (`percentage` or `fixed_amount`) and
