@@ -1,0 +1,106 @@
+name: Release
+
+# Turns the changelog's Unreleased section into the next version, commits that to main, tags it,
+# creates the GitHub Release and waits until Packagist serves the tag. Packagist reads the tag
+# through its GitHub hook. The push uses the RELEASE_DEPLOY_KEY deploy key, the one actor the
+# main ruleset lets past the required CI check; the workflow token cannot pass it.
+on:
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: Which part of the version goes up
+        type: choice
+        options: [patch, minor, major]
+        required: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  checks:
+    if: github.ref == 'refs/heads/main'
+    uses: ./.github/workflows/ci.yml
+
+  release:
+    needs: checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          ssh-key: ${{ secrets.RELEASE_DEPLOY_KEY }}
+          persist-credentials: true # zizmor: ignore[artipacked] the push to main needs the key
+
+      - name: Work out the version
+        id: version
+        env:
+          BUMP: ${{ inputs.bump }}
+        run: |
+          latest=$(git describe --tags --abbrev=0 --match 'v[0-9]*')
+          IFS=. read -r major minor patch <<< "${latest#v}"
+          case "$BUMP" in
+            major) version="$((major + 1)).0.0" ;;
+            minor) version="$major.$((minor + 1)).0" ;;
+            patch) version="$major.$minor.$((patch + 1))" ;;
+          esac
+          if git rev-parse -q --verify "refs/tags/v$version" > /dev/null; then
+            echo "::error::v$version already exists"
+            exit 1
+          fi
+          echo "Releasing $version after $latest"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Date the Unreleased section
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          if ! grep -qx '## Unreleased' CHANGELOG.md; then
+            echo "::error::CHANGELOG.md has no '## Unreleased' section, so there is nothing to release"
+            exit 1
+          fi
+          awk '/^## Unreleased$/ {inside = 1; next} inside && /^## / {exit} inside' CHANGELOG.md > "$RUNNER_TEMP/notes.md"
+          if ! grep -q '[^[:space:]]' "$RUNNER_TEMP/notes.md"; then
+            echo "::error::The '## Unreleased' section is empty"
+            exit 1
+          fi
+          sed -i "0,/^## Unreleased\$/s//## $VERSION — $(date -u +%F)/" CHANGELOG.md
+          git diff --stat
+
+      - name: Commit, tag and push
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -q -m "docs(changelog): release $VERSION" CHANGELOG.md
+          git tag -a "v$VERSION" -m "v$VERSION"
+          git push --atomic origin HEAD:refs/heads/main "refs/tags/v$VERSION"
+
+      - name: GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: gh release create "v$VERSION" --verify-tag --title "v$VERSION" --notes-file "$RUNNER_TEMP/notes.md"
+
+      - name: Wait for Packagist
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          package=$(jq -r .name composer.json)
+          for _ in $(seq 1 40); do
+            if curl -fsS "https://repo.packagist.org/p2/$package.json" | jq -e --arg v "v$VERSION" '.packages[][] | select(.version == $v)' > /dev/null; then
+              echo "Packagist serves $package v$VERSION"
+              exit 0
+            fi
+            sleep 15
+          done
+          echo "::error::Packagist does not serve $package v$VERSION after 10 minutes. Check the GitHub hook on packagist.org"
+          exit 1
