@@ -15,6 +15,14 @@ one: a breaking change waits for the next major, so `^1.0` is safe to pin and le
 
 ### Added
 
+- **A customer's open vouchers arrive through the core SDK 1.7.0, with no change here.**
+  `Puntjes::vouchers()` returns the core's `Vouchers` resource, so you get
+  `Puntjes::vouchers()->forCustomer($customerId)` when you run `composer update puntjes/php-sdk`.
+  It follows PuntjesApp/Puntjes#1089 and lists the campaign bons a customer can still spend, for a
+  customer who comes to the till without the code. Each item is an `OpenVoucher`, and
+  `isSpendableAt('centrum')` tells a till whether its shop takes the bon. It needs a Puntjes with
+  #1089 deployed; an older one answers 404. This package keeps `^1.1`. A test pins the call
+  through the facade on core 1.7.0 and newer.
 - **A reward's limit per customer arrives through the core SDK 1.7.0, with no change here.** It
   follows PuntjesApp/Puntjes#1168: each reward of `Puntjes::rewards()->list()` carries
   `maxRedemptionsPerCustomer` (null means no limit) and `customerRedemptions` (how often the named

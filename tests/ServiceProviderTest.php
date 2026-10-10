@@ -571,6 +571,32 @@ final class ServiceProviderTest extends TestCase
     }
 
     #[Group('needs-newer-core')]
+    public function test_a_customers_open_vouchers_reach_the_app_with_their_shops(): void
+    {
+        $path = null;
+        $http = $this->fakeApi(static function (RequestInterface $request) use (&$path): array {
+            $path = $request->getUri()->getPath();
+
+            return [200, ['data' => [
+                ['voucher_code' => 'BON-WEB', 'campaign_id' => 5, 'kind' => 'discount',
+                    'discount' => ['kind' => 'percentage', 'percentage' => 15, 'product_reference' => null],
+                    'products' => null, 'valid_until' => '2026-10-12',
+                    'branches' => [['external_id' => 'webshop', 'name' => 'Webshop', 'type' => 'online']]],
+            ]]];
+        });
+
+        $vouchers = PuntjesFacade::vouchers()->forCustomer(42);
+
+        self::assertSame(1, $http->apiRequests);
+        self::assertSame('/api/v1/customers/42/vouchers', $path);
+        self::assertCount(1, $vouchers);
+        self::assertSame('BON-WEB', $vouchers[0]->voucherCode);
+        self::assertSame('2026-10-12', $vouchers[0]->validUntil);
+        self::assertTrue($vouchers[0]->isSpendableAt('webshop'));
+        self::assertFalse($vouchers[0]->isSpendableAt('centrum'));
+    }
+
+    #[Group('needs-newer-core')]
     public function test_a_rewards_discount_kind_reaches_the_app_before_the_redemption(): void
     {
         $this->fakeApi(static fn (): array => [200, ['data' => [
