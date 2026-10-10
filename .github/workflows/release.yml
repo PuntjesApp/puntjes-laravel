@@ -2,8 +2,8 @@ name: Release
 
 # Turns the changelog's Unreleased section into the next version, commits that to main, tags it,
 # creates the GitHub Release and waits until Packagist serves the tag. Packagist reads the tag
-# through its GitHub hook. The push uses the RELEASE_DEPLOY_KEY deploy key, the one actor the
-# main ruleset lets past the required CI check; the workflow token cannot pass it.
+# through its GitHub hook. The push uses a token of the org App puntjes-sdk-bot (PuntjesApp/Puntjes#1123),
+# the one actor besides admins the main ruleset lets past the required CI check.
 on:
   workflow_dispatch:
     inputs:
@@ -32,12 +32,19 @@ jobs:
     permissions:
       contents: write
     steps:
+      - uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        id: app
+        with:
+          client-id: ${{ vars.SDK_BOT_CLIENT_ID }}
+          private-key: ${{ secrets.SDK_BOT_PRIVATE_KEY }}
+          permission-contents: write
+
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.sha }}
           fetch-depth: 0
-          ssh-key: ${{ secrets.RELEASE_DEPLOY_KEY }}
-          persist-credentials: true # zizmor: ignore[artipacked] the push to main needs the key
+          token: ${{ steps.app.outputs.token }}
+          persist-credentials: true # zizmor: ignore[artipacked] the push to main needs the token
 
       - name: Work out the version
         id: version
@@ -78,8 +85,8 @@ jobs:
         env:
           VERSION: ${{ steps.version.outputs.version }}
         run: |
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git config user.name 'puntjes-sdk-bot[bot]'
+          git config user.email 'puntjes-sdk-bot[bot]@users.noreply.github.com'
           git commit -q -m "docs(changelog): release $VERSION" CHANGELOG.md
           git tag -a "v$VERSION" -m "v$VERSION"
           git push --atomic origin HEAD:refs/heads/main "refs/tags/v$VERSION"
