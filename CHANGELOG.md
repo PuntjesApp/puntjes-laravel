@@ -24,7 +24,7 @@ one: a breaking change waits for the next major, so `^1.0` is safe to pin and le
   A test pins the fields through the facade on core 1.6.0 and newer.
 - **The Puntjes API changes of PuntjesApp/Puntjes#1084 arrive through the core SDK 1.5.0, with
   no change here.** This package keeps `^1.1`: it uses no code from 1.5.0. Run
-  `composer update puntjes/php-sdk` once the core's 1.5.0 is out to get the new names below.
+  `composer update puntjes/php-sdk` to core 1.5.0 or newer to get the new names below.
   - `RewardSummary::$isUnlimited` and `Reward::$isUnlimited`, from `Puntjes::rewards()->list()`
     and `Puntjes::products()->createReward()`. A reward with no stock limit has
     `remainingStock` 0, so a till that reads only that number shows it as sold out. Read
@@ -113,7 +113,7 @@ one: a breaking change waits for the next major, so `^1.0` is safe to pin and le
   This package has no model of its own for these answers: they arrive as the core's
   `Redemption` and `VoucherVerification`, and on `^1.1` the old fields read as before, with the
   item number already in `$redemption->typeSpecificData['product_reference']`. Run
-  `composer update puntjes/php-sdk` to core 1.5.0 or newer to read
+  `composer update puntjes/php-sdk` to core 1.3.0 or newer to read
   `$redemption->productReference()` and `$voucher->discount?->productReference`. For a discount
   on one product, pass `appliedTo()` the amount it counts on: that product's price, or its line
   total if your till applies it to every unit. A test now pins that the new
@@ -125,7 +125,7 @@ one: a breaking change waits for the next major, so `^1.0` is safe to pin and le
   `points_redeemed_from_import`, `points_expired_from_import`, `redemption_rate_excluding_import`
   and `breakage_rate_excluding_import`. This package has no statistics model of its own: the
   answer arrives as the core's `LoyaltyStatistics`, and on `^1.1` the old fields read as before.
-  Run `composer update puntjes/php-sdk` to core 1.5.0 or newer to read the four new
+  Run `composer update puntjes/php-sdk` to core 1.2.0 or newer to read the four new
   properties, and prefer `redemptionRateExcludingImport` over `redemptionRate`. A test now pins
   that the new answer reaches your app with the old fields unchanged.
 - **The error `INVALID_JSON` (400) reaches this package through the core SDK.** The Puntjes API
@@ -134,7 +134,7 @@ one: a breaking change waits for the next major, so `^1.0` is safe to pin and le
   again, so the core never replays it. Before, such a body was read as empty. This package
   maps no error codes of its own: the error arrives as the core's `ApiException`, and `^1.1`
   already lets it through as `ApiException::code()`. Run `composer update puntjes/php-sdk`
-  once the core's next release is out to get `ErrorCode::InvalidJson` on the enum. A test
+  to core 1.2.0 or newer to get `ErrorCode::InvalidJson` on the enum. A test
   now pins that the error reaches your app once and untouched.
 - **Two more answers change, with no change here.** Text that is not valid UTF-8 in a query
   value or form field now answers 422 `VALIDATION_ERROR` and names the field, so it arrives as
@@ -148,8 +148,8 @@ one: a breaking change waits for the next major, so `^1.0` is safe to pin and le
   the customer's address bounced or was marked as spam; nothing is queued and the
   per-customer cooldown is not spent. This package maps no error codes of its own: every
   `ApiException` comes from `puntjes/php-sdk`, and `^1.1` already lets the code through as
-  `ApiException::code()`. Run `composer update puntjes/php-sdk` once the core's next release
-  is out to get `ErrorCode::CustomerEmailSuppressed` on the enum, and catch it where you
+  `ApiException::code()`. Run `composer update puntjes/php-sdk` to core 1.2.0 or newer
+  to get `ErrorCode::CustomerEmailSuppressed` on the enum, and catch it where you
   call `Puntjes::customers()->sendCard()` to ask the customer for an address that works.
 - **A duplicate email address answers 409, through the core SDK.** Registering or changing a
   customer throws `ConflictException` (`IDENTIFIER_DUPLICATE`, 409) when another customer of the
