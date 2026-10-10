@@ -7,15 +7,21 @@ one: a breaking change waits for the next major, so `^1.0` is safe to pin and le
 
 ## Unreleased
 
+### Removed
+
+- **Laravel 11.** This package now needs Laravel 12 or 13. Laravel 11 gets no security fixes any more,
+  and Composer refuses to install any of its releases because of open security advisories. On
+  Laravel 11, Composer keeps the version of this package you have.
+
 ### Added
 
-- **A discount's kind and size arrive through the next core SDK release after 1.5.0, with no
-  change here.** It follows PuntjesApp/Puntjes#1112: each reward of
+- **A discount's kind and size arrive through the core SDK 1.6.0, with no change
+  here.** It follows PuntjesApp/Puntjes#1112: each reward of
   `Puntjes::rewards()->list()` carries `discountType` (`percentage` or `fixed_amount`) and
   `discountValue` (a percentage as a whole number, a fixed amount in cents), with
   `isPercentageDiscount()` and `isFixedAmountDiscount()`, so a till can decide before it redeems a
-  discount. Run `composer update puntjes/php-sdk` once that release is out. This package keeps
-  `^1.1`. A test pins the fields through the facade; it passes once the core release is installed.
+  discount. Run `composer update puntjes/php-sdk` to get them. This package keeps `^1.1`.
+  A test pins the fields through the facade on core 1.6.0 and newer.
 - **The Puntjes API changes of PuntjesApp/Puntjes#1084 arrive through the core SDK 1.5.0, with
   no change here.** This package keeps `^1.1`: it uses no code from 1.5.0. Run
   `composer update puntjes/php-sdk` once the core's 1.5.0 is out to get the new names below.
@@ -59,7 +65,7 @@ one: a breaking change waits for the next major, so `^1.0` is safe to pin and le
 - **Merged customers arrive through the core SDK, with no change here.** Puntjes lets a shop
   merge two accounts of the same person (PuntjesApp/Puntjes#1105). One account stays and the
   other closes. No route, field or shape changed, and this package keeps `^1.1`: every answer
-  below already reaches your app on the core it requires. The core's next release
+  below already reaches your app on the core it requires. The core's 1.6.0
   (PuntjesApp/puntjes-php-sdk#28) names the code in the docblocks of the wallet methods.
   Merging is behind a per-shop switch in Puntjes, so these answers appear only for shops where
   it is on. After a merge, the account that stays can carry an older `customerSince`, and a
@@ -107,7 +113,7 @@ one: a breaking change waits for the next major, so `^1.0` is safe to pin and le
   This package has no model of its own for these answers: they arrive as the core's
   `Redemption` and `VoucherVerification`, and on `^1.1` the old fields read as before, with the
   item number already in `$redemption->typeSpecificData['product_reference']`. Run
-  `composer update puntjes/php-sdk` once the core's next release is out to read
+  `composer update puntjes/php-sdk` to core 1.5.0 or newer to read
   `$redemption->productReference()` and `$voucher->discount?->productReference`. For a discount
   on one product, pass `appliedTo()` the amount it counts on: that product's price, or its line
   total if your till applies it to every unit. A test now pins that the new
@@ -119,7 +125,7 @@ one: a breaking change waits for the next major, so `^1.0` is safe to pin and le
   `points_redeemed_from_import`, `points_expired_from_import`, `redemption_rate_excluding_import`
   and `breakage_rate_excluding_import`. This package has no statistics model of its own: the
   answer arrives as the core's `LoyaltyStatistics`, and on `^1.1` the old fields read as before.
-  Run `composer update puntjes/php-sdk` once the core's next release is out to read the four new
+  Run `composer update puntjes/php-sdk` to core 1.5.0 or newer to read the four new
   properties, and prefer `redemptionRateExcludingImport` over `redemptionRate`. A test now pins
   that the new answer reaches your app with the old fields unchanged.
 - **The error `INVALID_JSON` (400) reaches this package through the core SDK.** The Puntjes API
