@@ -588,6 +588,27 @@ final class ServiceProviderTest extends TestCase
         self::assertSame(500, $fixed->discountValue);
     }
 
+    public function test_a_rewards_limit_per_customer_reaches_the_app_before_the_redemption(): void
+    {
+        $query = null;
+        $this->fakeApi(static function (RequestInterface $request) use (&$query): array {
+            $query = $request->getUri()->getQuery();
+
+            return [200, ['data' => [
+                ['id' => 1, 'name' => 'Koffie', 'type' => 'free_product', 'point_cost' => 100,
+                    'total_stock' => null, 'remaining_stock' => 0, 'is_unlimited' => true,
+                    'max_redemptions_per_customer' => 3, 'customer_redemptions' => 1],
+            ]]];
+        });
+
+        [$reward] = PuntjesFacade::rewards()->list(countRedemptionsFor: 'CARD-1');
+
+        self::assertSame('identifier=CARD-1', $query);
+        self::assertSame(3, $reward->maxRedemptionsPerCustomer);
+        self::assertSame(1, $reward->customerRedemptions);
+        self::assertSame(2, $reward->redemptionsLeft());
+    }
+
     /**
      * Bind a PSR-18 client that grants `token-1`, `token-2`, ... and answers every API call with `$answer`.
      *
