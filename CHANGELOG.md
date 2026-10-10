@@ -79,6 +79,11 @@ one: a breaking change waits for the next major, so `^1.0` is safe to pin and le
 
 ### Changed
 
+- **Requires `puntjes/php-sdk` `^1.1`.** The core's 1.1.0 adds
+  `Redemptions::forCustomer()`, so `Puntjes::redemptions()->forCustomer($customerId,
+  RedemptionStatus::Valid)` lists the rewards a customer still has to collect. A till whose
+  customer comes without the confirmation code finds the reward that way and verifies it
+  as usual. The raised floor makes sure an app that installs this package gets the method.
 - **Merged customers arrive through the core SDK, with no change here.** Puntjes lets a shop
   merge two accounts of the same person (PuntjesApp/Puntjes#1105). One account stays and the
   other closes. No route, field or shape changed, and this package keeps `^1.1`: every answer
@@ -173,19 +178,6 @@ one: a breaking change waits for the next major, so `^1.0` is safe to pin and le
   same vendor already has that email address, as profile email or as email identifier, a
   deactivated customer included. Only the docs of the core changed. Run
   `composer update puntjes/php-sdk` to read them.
-
-## 1.1.0 — 2026-09-30
-
-Not tagged, so Packagist does not offer it: the newest tag is v1.0.0. This change ships with
-the next tagged release.
-
-### Changed
-
-- **Requires `puntjes/php-sdk` `^1.1`.** The core's 1.1.0 adds
-  `Redemptions::forCustomer()`, so `Puntjes::redemptions()->forCustomer($customerId,
-  RedemptionStatus::Valid)` lists the rewards a customer still has to collect. A till whose
-  customer comes without the confirmation code finds the reward that way and verifies it
-  as usual. The raised floor makes sure an app that installs this package gets the method.
 
 ## 1.0.0 — 2026-08-30
 
