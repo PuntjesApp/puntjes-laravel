@@ -1,0 +1,29 @@
+name: Spec published
+
+# PuntjesApp/Puntjes sends this event after each release that publishes a new api.json to
+# PuntjesApp/puntjes-openapi. For now the job only shows what arrived; regenerating the SDK from it
+# replaces this job (PuntjesApp/Puntjes#1127).
+on:
+  repository_dispatch:
+    types: [spec-published]
+
+permissions: {}
+
+jobs:
+  report:
+    name: Report the published spec
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Show the tag, the level and the spec URL
+        env:
+          TAG: ${{ github.event.client_payload.tag }}
+          LEVEL: ${{ github.event.client_payload.level }}
+          URL: ${{ github.event.client_payload.url }}
+        run: |
+          echo "puntjes-openapi published ${TAG} (${LEVEL}): ${URL}"
+          {
+            echo "### puntjes-openapi published ${TAG}"
+            echo ""
+            echo "Level: ${LEVEL}. Spec: ${URL}"
+          } >> "$GITHUB_STEP_SUMMARY"
