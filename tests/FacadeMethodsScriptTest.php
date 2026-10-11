@@ -34,7 +34,9 @@ final class FacadeMethodsScriptTest extends TestCase
         self::assertSame(0, $this->writeMethods($this->facade));
 
         self::assertStringContainsString(
-            " *\n * @method static \\ArrayObject apple()\n * @method static \\ArrayIterator zebra()\n *\n * @see Something",
+            " *\n * @method static \\ArrayObject apple()\n"
+            ." * @method static ?\\ArrayIterator byItem(\\ArrayObject \$item, ?\\Countable \$count, string \$id)\n"
+            ." * @method static \\ArrayIterator zebra()\n *\n * @see Something",
             (string) file_get_contents($this->facade),
         );
         self::assertStringNotContainsString('stale()', (string) file_get_contents($this->facade));

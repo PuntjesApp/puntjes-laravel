@@ -15,15 +15,27 @@ $methods = array_filter(
 );
 usort($methods, static fn (ReflectionMethod $a, ReflectionMethod $b): int => strcmp($a->getName(), $b->getName()));
 
+$render = static function (?ReflectionType $type) use (&$render): string {
+    if ($type === null) {
+        return 'mixed';
+    }
+    if ($type instanceof ReflectionNamedType) {
+        $name = $type->isBuiltin() ? $type->getName() : '\\'.$type->getName();
+
+        return ($type->allowsNull() && $type->getName() !== 'mixed' && $type->getName() !== 'null' ? '?' : '').$name;
+    }
+    $separator = $type instanceof ReflectionIntersectionType ? '&' : '|';
+
+    return implode($separator, array_map($render, $type->getTypes()));
+};
+
 $lines = '';
 foreach ($methods as $method) {
     $parameters = implode(', ', array_map(
-        static fn (ReflectionParameter $parameter): string => ltrim(($parameter->getType() ?? 'mixed').' $'.$parameter->getName()),
+        static fn (ReflectionParameter $parameter): string => $render($parameter->getType()).' $'.$parameter->getName(),
         $method->getParameters(),
     ));
-    $return = $method->getReturnType();
-    $type = $return instanceof ReflectionNamedType && ! $return->isBuiltin() ? '\\'.$return->getName() : (string) ($return ?? 'mixed');
-    $lines .= " * @method static {$type} {$method->getName()}({$parameters})\n";
+    $lines .= " * @method static {$render($method->getReturnType())} {$method->getName()}({$parameters})\n";
 }
 
 $source = (string) file_get_contents($file);

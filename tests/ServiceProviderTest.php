@@ -105,6 +105,32 @@ final class ServiceProviderTest extends TestCase
         self::assertSame(1, $http->apiRequests);
     }
 
+    public function test_a_non_default_retry_count_reaches_the_core(): void
+    {
+        config()->set('puntjes.http.retries', 1);
+        $http = $this->fakeApi(static fn (): array => [503, self::error('SERVICE_UNAVAILABLE', 503)]);
+
+        try {
+            PuntjesFacade::rewards()->get()->wait();
+            self::fail('Expected a ServerException.');
+        } catch (ServerException) {
+        }
+
+        self::assertSame(2, $http->apiRequests);
+    }
+
+    public function test_without_a_bound_client_the_package_http_client_sends_the_requests(): void
+    {
+        $http = $this->fakeApi(static fn (): array => [200, ['data' => []]]);
+        $this->app->forgetInstance(ClientInterface::class);
+        unset($this->app[ClientInterface::class]);
+        $this->app->instance('puntjes.http', $http);
+
+        PuntjesFacade::rewards()->get()->wait();
+
+        self::assertSame(1, $http->apiRequests);
+    }
+
     public function test_configured_headers_reach_the_request_beside_the_package_user_agent(): void
     {
         config()->set('puntjes.http.default_headers', ['X-Trace-Id' => 'abc123']);

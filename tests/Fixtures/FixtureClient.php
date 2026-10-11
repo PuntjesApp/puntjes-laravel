@@ -21,5 +21,10 @@ final class FixtureClient extends \ArrayObject
         return new \ArrayObject;
     }
 
+    public function byItem(\ArrayObject $item, ?\Countable $count, string $id): ?\ArrayIterator
+    {
+        return null;
+    }
+
     private function hidden(): void {}
 }
