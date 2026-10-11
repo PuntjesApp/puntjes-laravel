@@ -9,9 +9,8 @@ use Illuminate\Contracts\Cache\Factory as CacheFactory;
 use Illuminate\Support\ServiceProvider;
 use Psr\Http\Client\ClientInterface;
 use Puntjes\Auth\TokenStore;
-use Puntjes\Config;
 use Puntjes\Exception\ConfigurationException;
-use Puntjes\Http\HttpClient;
+use Puntjes\Generated\PuntjesClient;
 use Puntjes\Puntjes;
 
 final class PuntjesServiceProvider extends ServiceProvider
@@ -19,43 +18,6 @@ final class PuntjesServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->mergeConfigFrom(__DIR__.'/../config/puntjes.php', 'puntjes');
-
-        $this->app->singleton(Config::class, function (): Config {
-            $clientId = (string) (config('puntjes.client_id') ?? '');
-            $clientSecret = (string) (config('puntjes.client_secret') ?? '');
-
-            if ($clientId === '' || $clientSecret === '') {
-                // Raised on first resolution rather than at boot, so an application that
-                // has the package installed but not configured still boots — artisan,
-                // migrations and unrelated routes keep working.
-                throw new ConfigurationException(
-                    'Puntjes credentials are missing. Set PUNTJES_CLIENT_ID and PUNTJES_CLIENT_SECRET in your .env.',
-                );
-            }
-
-            $retryBaseDelay = (float) config('puntjes.http.retry_base_delay', 0.5);
-
-            if ($retryBaseDelay < 0) {
-                // The SDK does not check this one, and the failure it produces is a
-                // ValueError out of usleep() during a retry: the request path breaks
-                // exactly when it is already failing.
-                throw new ConfigurationException(
-                    'puntjes.http.retry_base_delay must not be negative, got '.$retryBaseDelay.'.',
-                );
-            }
-
-            return new Config(
-                clientId: $clientId,
-                clientSecret: $clientSecret,
-                baseUrl: (string) config('puntjes.base_url'),
-                maxRetries: (int) config('puntjes.http.retries', 2),
-                retryBaseDelay: $retryBaseDelay,
-                defaultHeaders: array_merge(
-                    ['User-Agent' => 'puntjes-laravel/'.($this->app->version())],
-                    (array) config('puntjes.http.default_headers', []),
-                ),
-            );
-        });
 
         $this->app->singleton(TokenStore::class, function (): TokenStore {
             /** @var CacheFactory $cache */
@@ -67,22 +29,39 @@ final class PuntjesServiceProvider extends ServiceProvider
             );
         });
 
-        $this->app->singleton(Puntjes::class, function (): Puntjes {
-            // Any PSR-18 client bound in the container wins, so an application can
-            // control timeouts, proxies, TLS and instrumentation without this package
-            // needing an option for each of them.
-            $http = $this->app->bound(ClientInterface::class)
-                ? new HttpClient($this->app->make(ClientInterface::class))
-                : new HttpClient($this->defaultHttpClient());
+        $this->app->bindIf('puntjes.http', fn (): ?ClientInterface => $this->defaultHttpClient());
 
-            return Puntjes::fromConfig(
-                $this->app->make(Config::class),
-                $this->app->make(TokenStore::class),
-                $http,
+        $this->app->singleton(PuntjesClient::class, function (): PuntjesClient {
+            $clientId = (string) (config('puntjes.client_id') ?? '');
+            $clientSecret = (string) (config('puntjes.client_secret') ?? '');
+
+            if ($clientId === '' || $clientSecret === '') {
+                // Raised on first resolution rather than at boot, so an application that
+                // has the package installed but not configured still boots.
+                throw new ConfigurationException(
+                    'Puntjes credentials are missing. Set PUNTJES_CLIENT_ID and PUNTJES_CLIENT_SECRET in your .env.',
+                );
+            }
+
+            // Any PSR-18 client bound in the container wins, so an application controls
+            // timeouts, proxies, TLS and instrumentation without an option for each.
+            return Puntjes::make(
+                clientId: $clientId,
+                clientSecret: $clientSecret,
+                baseUrl: (string) config('puntjes.base_url'),
+                tokenStore: $this->app->make(TokenStore::class),
+                httpClient: $this->app->bound(ClientInterface::class)
+                    ? $this->app->make(ClientInterface::class)
+                    : $this->app->make('puntjes.http'),
+                maxRetries: (int) config('puntjes.http.retries', 2),
+                defaultHeaders: array_merge(
+                    ['User-Agent' => 'puntjes-laravel/'.$this->app->version()],
+                    (array) config('puntjes.http.default_headers', []),
+                ),
             );
         });
 
-        $this->app->alias(Puntjes::class, 'puntjes');
+        $this->app->alias(PuntjesClient::class, 'puntjes');
     }
 
     public function boot(): void
@@ -99,7 +78,7 @@ final class PuntjesServiceProvider extends ServiceProvider
      */
     public function provides(): array
     {
-        return [Puntjes::class, Config::class, TokenStore::class, 'puntjes'];
+        return [PuntjesClient::class, TokenStore::class, 'puntjes.http', 'puntjes'];
     }
 
     /**
