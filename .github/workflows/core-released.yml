@@ -1,0 +1,182 @@
+name: Core released
+
+# puntjes-php-sdk sends core-released once Packagist serves a new core tag. This turns it into a PR that raises the
+# puntjes/php-sdk floor and rewrites the facade's method list. A minor or patch PR merges itself when CI is green; a
+# major one waits for a person. A person can also start it by hand for a tag that is already out. A run that fails,
+# is cancelled, or opens a PR whose CI goes red reports it in the issue "Bump failed".
+on:
+  repository_dispatch:
+    types: [core-released]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: The puntjes/php-sdk tag, as vX.Y.Z
+        type: string
+        required: true
+
+permissions: {}
+
+concurrency:
+  group: core-released
+  cancel-in-progress: false
+
+jobs:
+  bump:
+    name: Require the released core
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    permissions:
+      issues: write # the failure issue; the bot App has no issues permission
+    env:
+      TAG: ${{ github.event.client_payload.tag || inputs.tag }}
+    steps:
+      - uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        id: app
+        with:
+          client-id: ${{ vars.SDK_BOT_CLIENT_ID }}
+          private-key: ${{ secrets.SDK_BOT_PRIVATE_KEY }}
+          permission-contents: write
+          permission-pull-requests: write
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          token: ${{ steps.app.outputs.token }}
+          persist-credentials: false
+      - uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # 2.37.2
+        with:
+          php-version: '8.4'
+          coverage: none
+      - name: Plan
+        id: plan
+        env:
+          GH_TOKEN: ${{ steps.app.outputs.token }}
+        run: |
+          open=$(gh pr list --repo "$GITHUB_REPOSITORY" --state open --limit 200 --json headRefName \
+            --jq '.[].headRefName | select(startswith("bump/core-"))')
+          php scripts/bump-plan.php "$TAG" "$(jq -r '.require["puntjes/php-sdk"]' composer.json)" "$open" >> "$GITHUB_OUTPUT"
+      - name: Say why the dispatch is skipped
+        if: steps.plan.outputs.skip == 'true'
+        run: echo "::notice::composer.json or an open bump PR already requires this core or a newer one."
+      - name: Find out how far an earlier run got
+        id: state
+        if: steps.plan.outputs.skip == 'false'
+        env:
+          GH_TOKEN: ${{ steps.app.outputs.token }}
+          BRANCH: ${{ steps.plan.outputs.branch }}
+        run: |
+          prs=$(gh pr list --repo "$GITHUB_REPOSITORY" --head "$BRANCH" --state all --json number,state)
+          pr=$(printf '%s' "$prs" | jq -r '[.[] | select(.state != "CLOSED")][0].number // empty')
+          closed=$(printf '%s' "$prs" | jq -r '[.[] | select(.state == "CLOSED")][0].number // empty')
+          if [ -n "$pr" ]; then
+            echo "::notice::PR #$pr exists for $BRANCH, so this dispatch was handled already."
+            echo "stage=done" >> "$GITHUB_OUTPUT"
+            echo "pr=$pr" >> "$GITHUB_OUTPUT"
+          elif git ls-remote --exit-code --heads origin "$BRANCH" > /dev/null; then
+            if [ -n "$closed" ]; then
+              echo "::notice::PR #$closed for $BRANCH was closed, so this run starts again from main."
+              git push "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" --delete "$BRANCH"
+              echo "stage=fresh" >> "$GITHUB_OUTPUT"
+            else
+              echo "::notice::$BRANCH exists without a PR, so this run opens the PR from it."
+              echo "stage=resume" >> "$GITHUB_OUTPUT"
+            fi
+          else
+            echo "stage=fresh" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Bump, commit and push
+        if: steps.state.outputs.stage == 'fresh'
+        env:
+          GH_TOKEN: ${{ steps.app.outputs.token }}
+          BRANCH: ${{ steps.plan.outputs.branch }}
+          TYPE: ${{ steps.plan.outputs.commit_type }}
+          CONSTRAINT: ${{ steps.plan.outputs.constraint }}
+        run: |
+          composer require "puntjes/php-sdk:${CONSTRAINT}" --no-update --no-interaction
+          composer update --no-interaction --no-progress --prefer-dist
+          php scripts/facade-methods.php
+          git config user.name "puntjes-sdk-bot[bot]"
+          git config user.email "puntjes-sdk-bot[bot]@users.noreply.github.com"
+          git switch -c "$BRANCH"
+          git add composer.json src/Facades/Puntjes.php
+          git commit -m "${TYPE}: require puntjes/php-sdk ${TAG}"
+          git push "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" "$BRANCH"
+      - name: Open the PR
+        if: steps.state.outputs.stage == 'fresh' || steps.state.outputs.stage == 'resume'
+        env:
+          GH_TOKEN: ${{ steps.app.outputs.token }}
+          BRANCH: ${{ steps.plan.outputs.branch }}
+          TYPE: ${{ steps.plan.outputs.commit_type }}
+          AUTO_MERGE: ${{ steps.plan.outputs.auto_merge }}
+        run: |
+          set -- --repo "$GITHUB_REPOSITORY" --base main --head "$BRANCH" --title "${TYPE}: require puntjes/php-sdk ${TAG}" \
+            --body "puntjes/php-sdk ${TAG} is on Packagist. This raises the floor and rewrites the facade's method list."
+          if [ "$AUTO_MERGE" != true ]; then
+            set -- "$@" --reviewer cedricdhooge96
+          fi
+          gh pr create "$@"
+          if [ "$AUTO_MERGE" = true ]; then
+            gh pr merge "$BRANCH" --repo "$GITHUB_REPOSITORY" --auto --squash
+          fi
+      - name: Close the open PRs for older cores
+        if: steps.plan.outputs.skip == 'false' && steps.plan.outputs.close != ''
+        env:
+          GH_TOKEN: ${{ steps.app.outputs.token }}
+          CLOSE: ${{ steps.plan.outputs.close }}
+        run: |
+          for branch in $CLOSE; do
+            commits=$(gh pr view "$branch" --repo "$GITHUB_REPOSITORY" --json commits --jq '.commits | length')
+            if [ "$commits" = 1 ]; then
+              gh pr close "$branch" --repo "$GITHUB_REPOSITORY" --delete-branch \
+                --comment "The core ${TAG} replaces this one. Its bump PR holds every change of this PR."
+            else
+              gh pr comment "$branch" --repo "$GITHUB_REPOSITORY" \
+                --body "The core ${TAG} has its own bump PR now. This PR has commits by a person, so it stays open: merge or close it yourself."
+            fi
+          done
+      - name: Wait for CI on the new PR
+        if: steps.state.outputs.stage == 'fresh' || steps.state.outputs.stage == 'resume'
+        timeout-minutes: 25
+        env:
+          GH_TOKEN: ${{ steps.app.outputs.token }}
+          BRANCH: ${{ steps.plan.outputs.branch }}
+        run: |
+          while true; do
+            result=$(gh pr view "$BRANCH" --repo "$GITHUB_REPOSITORY" --json statusCheckRollup \
+              --jq '[.statusCheckRollup[] | select(.name == "CI")][0] | if . == null or .status != "COMPLETED" then "waiting" else .conclusion end')
+            case "$result" in
+              SUCCESS) exit 0 ;;
+              waiting) sleep 20 ;;
+              *) echo "::error::CI on $BRANCH ended with $result."; exit 1 ;;
+            esac
+          done
+      - name: Make sure the open PR merges itself unless it is a major
+        if: steps.state.outputs.stage == 'done'
+        env:
+          GH_TOKEN: ${{ steps.app.outputs.token }}
+          PR: ${{ steps.state.outputs.pr }}
+        run: |
+          state=$(gh pr view "$PR" --repo "$GITHUB_REPOSITORY" --json state,title,autoMergeRequest \
+            --jq 'if .state != "OPEN" then "closed" elif (.title | startswith("feat(deps)!:")) then "major"
+              elif .autoMergeRequest == null then "manual" else "auto" end')
+          if [ "$state" = manual ]; then
+            gh pr merge "$PR" --repo "$GITHUB_REPOSITORY" --auto --squash
+          fi
+      - name: Report the failure in an issue
+        if: failure() || cancelled()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          body="$RUNNER_TEMP/bump-failed.md"
+          tag='an invalid tag'
+          if printf '%s' "$TAG" | grep -Eqx 'v[0-9]+\.[0-9]+\.[0-9]+'; then
+            tag="$TAG"
+          fi
+          printf 'The core bump for %s failed: %s\n\nA person must look at it. A re-run picks up where this run stopped.\n' \
+            "$tag" "$RUN_URL" > "$body"
+          issue=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --search 'in:title "Bump failed"' \
+            --json number,title --jq '[.[] | select(.title == "Bump failed")][0].number // empty')
+          if [ -n "$issue" ]; then
+            gh issue comment "$issue" --repo "$GITHUB_REPOSITORY" --body-file "$body"
+          else
+            gh issue create --repo "$GITHUB_REPOSITORY" --title "Bump failed" --body-file "$body"
+          fi

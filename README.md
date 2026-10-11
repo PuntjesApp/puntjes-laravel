@@ -3,8 +3,8 @@
 Laravel integration for the [Puntjes](https://puntjes.app) loyalty API.
 
 A thin layer over [`puntjes/php-sdk`](https://github.com/PuntjesApp/puntjes-php-sdk):
-config, a service provider, a facade, and — the part that actually matters in
-production — a **cache-backed token store** so your app grants one access token per
+config, a service provider, a facade, and the part that matters most in production:
+a **cache-backed token store** so your app grants one access token per
 hour instead of one per web request.
 
 All the API surface, retry rules and error types live in the core SDK. Read its
@@ -25,7 +25,7 @@ PUNTJES_CLIENT_SECRET=…
 PUNTJES_BASE_URL=https://puntjes.app/api/v1
 ```
 
-That is the whole setup — the provider and facade are auto-discovered.
+That is the whole setup. The provider and the facade are auto-discovered.
 
 Publish the config only if you need to change something in it:
 
@@ -36,45 +36,53 @@ php artisan vendor:publish --tag=puntjes-config
 ## Use
 
 ```php
+use Puntjes\Generated\Customers\Lookup\LookupRequestBuilderGetRequestConfiguration as Lookup;
+use Puntjes\Generated\Models\CreateTransactionData;
 use Puntjes\Laravel\Facades\Puntjes;
-use Puntjes\Request\SubmitTransaction;
 
-$customer = Puntjes::customers()->lookup(identifier: $card);
+$customer = Puntjes::customers()->lookup()->get(new Lookup(
+    queryParameters: Lookup::createQueryParameters(identifier: $card),
+))->wait()->getData();
 
-Puntjes::transactions()->submit(new SubmitTransaction(
-    identifier:     $card,
-    totalAmount:    $order->total_cents,
-    idempotencyKey: 'order-'.$order->id,
-));
+$body = new CreateTransactionData();
+$body->setIdentifier($card);
+$body->setTotalAmount($order->total_cents);
+$body->setIdempotencyKey('order-'.$order->id);
+
+Puntjes::transactions()->post($body)->wait()->getData();
 ```
 
-Or inject the client — preferable in domain code, and trivially fakeable in tests:
+The facade forwards every call to the core's generated client, so it has every call the API
+has: `Puntjes::customers()`, `transactions()`, `rewards()`, `products()` and the rest. A call
+is a path and an HTTP method, and it returns a promise: end it with `->wait()`, then read the
+answer with `->getData()`. The core's [README](https://github.com/PuntjesApp/puntjes-php-sdk#readme)
+has the call style, the retry rule and the exceptions.
+
+Or inject the client, which is easier to replace in a test:
 
 ```php
-use Puntjes\Puntjes;
+use Puntjes\Generated\Models\CreateTransactionData;
+use Puntjes\Generated\PuntjesClient;
 
 final class AwardLoyaltyPointsAction
 {
-    public function __construct(private readonly Puntjes $puntjes) {}
+    public function __construct(private readonly PuntjesClient $puntjes) {}
 
     public function handle(Order $order): void
     {
-        $this->puntjes->transactions->submit(new SubmitTransaction(
-            identifier:     $order->loyalty_card,
-            totalAmount:    $order->total_cents,
-            idempotencyKey: 'order-'.$order->id,
-        ));
+        $body = new CreateTransactionData();
+        $body->setIdentifier($order->loyalty_card);
+        $body->setTotalAmount($order->total_cents);
+        $body->setIdempotencyKey('order-'.$order->id);
+
+        $this->puntjes->transactions()->post($body)->wait();
     }
 }
 ```
 
-The facade exposes each endpoint group as a method — `Puntjes::customers()`,
-`transactions()`, `wallets()`, `rewards()`, `redemptions()`, `products()`,
-`campaigns()`, `statistics()`, `vouchers()` — plus `Puntjes::me()`, `Puntjes::ping()`
-and `Puntjes::client()` for the underlying SDK instance.
+`Puntjes::client()` returns that same `PuntjesClient`.
 
-> The SDK exposes those groups as readonly *properties*, which a facade cannot proxy
-> (`__callStatic` only forwards method calls). Hence the accessor methods.
+Coming from 1.x? Read [`UPGRADING.md`](UPGRADING.md).
 
 ## Configuration
 
@@ -86,7 +94,6 @@ and `Puntjes::client()` for the underlying SDK instance.
 | `cache.store` | `PUNTJES_CACHE_STORE` | app default | Use a shared store in production |
 | `cache.prefix` | `PUNTJES_CACHE_PREFIX` | `puntjes` | |
 | `http.retries` | `PUNTJES_RETRIES` | `2` | Retry-safe requests only |
-| `http.retry_base_delay` | `PUNTJES_RETRY_BASE_DELAY` | `0.5` | Seconds before the first retry; doubles after each |
 | `http.timeout` | `PUNTJES_TIMEOUT` | `10` | Seconds |
 | `http.connect_timeout` | `PUNTJES_CONNECT_TIMEOUT` | `5` | Seconds |
 | `http.default_headers` | — | `[]` | Sent on every request |
@@ -96,12 +103,12 @@ This package sends a `User-Agent` naming itself and your Laravel version. Listin
 `Accept`, `Authorization` and `Content-Type` are the exceptions: the SDK sets those per
 request and its values win, so setting them here has no effect.
 
-If you published the config file under an earlier version, add the two new `http` keys to
-your copy. `mergeConfigFrom` merges only the top level, so a published `http` array
-replaces the package's whole `http` block and the new settings never appear.
+If you published the config file, a later `http` key this package adds does not reach your
+copy: `mergeConfigFrom` merges only the top level, so your `http` array replaces the
+package's whole `http` block. Add the new key to your copy, or publish the file again.
 
 `PUNTJES_BASE_URL` takes the base URL exactly as the API docs state it,
-`https://puntjes.app/api/v1`. The bare host is accepted as well — the SDK keeps only
+`https://puntjes.app/api/v1`. The bare host is accepted as well. The SDK keeps only
 the host either way, because the API lives under `/api/v1` while the OAuth token
 endpoint sits at `/oauth/token`, off the root.
 
@@ -111,18 +118,18 @@ configured still runs `artisan`, migrations and unrelated routes.
 
 ## Token caching
 
-Set `PUNTJES_CACHE_STORE` to a **shared** store — `redis`, `database`, `memcached`.
+Set `PUNTJES_CACHE_STORE` to a **shared** store: `redis`, `database` or `memcached`.
 The `array` and `file` drivers are per-process and per-server, so every worker grants
 its own token. Correct, just wasteful.
 
 Tokens are stored under a key derived from a hash of the credentials, so the secret
-is never written to the cache, and two vendors configured in one app — or one vendor
-mid secret-rotation — never read each other's token.
+is never written to the cache, and two shops configured in one app (or one shop in the
+middle of a secret rotation) never read each other's token.
 
 ## Custom HTTP client
 
 By default the package builds a Guzzle client honouring the configured timeouts. Bind
-your own PSR-18 client to take over completely — for instrumentation, a proxy, or
+your own PSR-18 client to take over completely, for instrumentation, a proxy or
 custom TLS:
 
 ```php
@@ -137,14 +144,14 @@ them on your client.
 Bind a fake client in your tests and assert against it, rather than hitting the API:
 
 ```php
-use Puntjes\Puntjes;
+use Puntjes\Generated\PuntjesClient;
 
-$this->app->instance(Puntjes::class, $fakePuntjes);
+$this->app->instance(PuntjesClient::class, $fakePuntjes);
 ```
 
 For request-level control, bind a stub `Psr\Http\Client\ClientInterface` and let the
-real SDK run against it — that keeps the auth flow, retries and error mapping in the
-test rather than mocking them away.
+real SDK run against it. That keeps the token, retry and error rules in the test
+instead of mocking them away.
 
 ## Requirements
 
@@ -185,7 +192,7 @@ Every pull request and every push to `main` runs PHPUnit, PHPStan and Pint in th
 
 | Run | What it installs | What it proves |
 |---|---|---|
-| `PHP 8.2 · oldest allowed packages` | The oldest version of every package that `composer.json` allows, including core SDK 1.1.0 | The lower bounds in `composer.json` are true |
+| `PHP 8.2 · oldest allowed packages` | The oldest version of every package that `composer.json` allows | The lower bounds in `composer.json` are true |
 | `PHP 8.2 · newest packages` | The newest versions that install on PHP 8.2 | The package works on its lowest PHP version today |
 | `PHP 8.4 · newest packages` | The newest versions of everything | The package works on a current PHP |
 
@@ -193,24 +200,32 @@ The same PHP version appears twice on purpose: the two runs differ in the packag
 not in PHP. Pint runs once, on PHP 8.4, at a fixed version, so a new Pint release never
 turns an unrelated pull request red.
 
-The oldest run skips the tests in the group `needs-newer-core`. Those tests pin fields that a
-newer core SDK adds, and they reach your app through the facade with no change in this
-package. The other two runs execute them.
-
 The check named `CI` is green only when all three runs are green. `main` requires that one
 check, so a pull request cannot merge while a run is red.
 
+### How a new core reaches this package
+
+Nobody edits this package when the API changes. When `puntjes/php-sdk` releases a new
+version, its release workflow waits until Packagist serves it and then sends
+`core-released` to this repository. `core-released.yml` opens a pull request that raises
+the `puntjes/php-sdk` floor to that version and rewrites the facade's `@method` lines with
+`scripts/facade-methods.php`. A minor or patch pull request merges itself when `CI` is
+green. A major one waits for a person, because the core's calls may have changed.
+
+The same tag twice does nothing the second time. When the robot fails, is cancelled, or
+opens a pull request whose `CI` goes red, it says so in the issue **Bump failed**. A newer
+core closes an older bump pull request, unless a person pushed commits to it.
+
+To run it by hand for a core version that is already out: **Actions → Core released → Run
+workflow**, with the tag (`v2.1.0`). If the bump pull request for that tag was closed, the
+run starts it again from `main`.
+
 ### Releasing
 
-1. Write what changed under `## Unreleased` in `CHANGELOG.md`, in the pull request that
-   makes the change.
-2. In GitHub, open **Actions → Release → Run workflow** on `main`, and choose **patch**,
-   **minor** or **major**.
-
-The workflow runs the three checks again, renames `## Unreleased` to the new version with
-today's date, commits that to `main`, tags it, creates the GitHub Release with that section
-as its notes, and waits until Packagist serves the new version. It stops before it changes
-anything when a check is red or when `## Unreleased` is missing or empty.
+[release-please](https://github.com/googleapis/release-please) keeps a release pull request
+open from the conventional commits on `main`. It merges itself when `CI` is green, tags the
+version, and Packagist reads the tag. A `feat` commit makes a minor, a `fix` a patch, and a
+`!` a major. `CHANGELOG.md` lists this package's own changes; a core bump appears as one line.
 
 ## License
 

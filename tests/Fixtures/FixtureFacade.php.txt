@@ -1,0 +1,11 @@
+<?php
+
+/**
+ * A facade.
+ *
+ * @method static \Gone\StaleRequestBuilder stale()
+ * @method static \Gone\OtherRequestBuilder other()
+ *
+ * @see Something
+ */
+final class FixtureFacade {}
