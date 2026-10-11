@@ -1,6 +1,6 @@
 {
     "name": "puntjes/laravel",
-    "description": "Laravel integration for the Puntjes loyalty API \u2014 service provider, facade, config and a cache-backed token store.",
+    "description": "Laravel integration for the Puntjes loyalty API — service provider, facade, config and a cache-backed token store.",
     "type": "library",
     "keywords": [
         "puntjes",
