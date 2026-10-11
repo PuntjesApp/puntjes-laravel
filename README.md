@@ -212,8 +212,13 @@ the `puntjes/php-sdk` floor to that version and rewrites the facade's `@method` 
 `scripts/facade-methods.php`. A minor or patch pull request merges itself when `CI` is
 green. A major one waits for a person, because the core's calls may have changed.
 
-The same tag twice does nothing the second time. To run it by hand for a core version that
-is already out: **Actions → Core released → Run workflow**, with the tag (`v2.1.0`).
+The same tag twice does nothing the second time. When the robot fails, is cancelled, or
+opens a pull request whose `CI` goes red, it says so in the issue **Bump failed**. A newer
+core closes an older bump pull request, unless a person pushed commits to it.
+
+To run it by hand for a core version that is already out: **Actions → Core released → Run
+workflow**, with the tag (`v2.1.0`). If the bump pull request for that tag was closed, the
+run starts it again from `main`.
 
 ### Releasing
 

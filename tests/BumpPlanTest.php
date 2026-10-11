@@ -75,7 +75,7 @@ final class BumpPlanTest extends TestCase
 
     public function test_a_newer_open_bump_makes_an_older_tag_skip(): void
     {
-        [, $plan] = $this->plan('v2.1.0', '^2.0.0', "bump/core-v2.2.0 feat(deps): require puntjes/php-sdk v2.2.0\n");
+        [, $plan] = $this->plan('v2.1.0', '^2.0.0', "bump/core-v2.2.0\n");
 
         self::assertSame('true', $plan['skip']);
         self::assertSame('', $plan['close']);
@@ -83,7 +83,7 @@ final class BumpPlanTest extends TestCase
 
     public function test_an_older_open_bump_is_closed(): void
     {
-        $open = "bump/core-v2.1.0 feat(deps): require puntjes/php-sdk v2.1.0\nfeature/other Something else\n";
+        $open = "bump/core-v2.1.0\nfeature/other\n";
 
         [, $plan] = $this->plan('v2.2.0', '^2.0.0', $open);
 
@@ -93,7 +93,7 @@ final class BumpPlanTest extends TestCase
 
     public function test_a_minor_after_an_open_major_is_still_a_major(): void
     {
-        [, $plan] = $this->plan('v3.1.0', '^2.4.0', "bump/core-v3.0.0 feat(deps)!: require puntjes/php-sdk v3.0.0\n");
+        [, $plan] = $this->plan('v3.1.0', '^2.4.0', "bump/core-v3.0.0\n");
 
         self::assertSame('bump/core-v3.0.0', $plan['close']);
         self::assertSame('feat(deps)!', $plan['commit_type']);
