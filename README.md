@@ -153,6 +153,13 @@ For request-level control, bind a stub `Psr\Http\Client\ClientInterface` and let
 real SDK run against it. That keeps the token, retry and error rules in the test
 instead of mocking them away.
 
+A retried request waits between attempts (0.5 s, then 1 s, ...). Bind `puntjes.sleeper` to a
+callable that does not wait, before the client is first resolved, so those tests stay fast:
+
+```php
+$this->app->instance('puntjes.sleeper', fn (float $seconds) => null);
+```
+
 ## Requirements
 
 - PHP 8.2+

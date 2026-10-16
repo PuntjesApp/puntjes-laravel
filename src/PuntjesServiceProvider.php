@@ -31,6 +31,9 @@ final class PuntjesServiceProvider extends ServiceProvider
 
         $this->app->bindIf('puntjes.http', fn (): ?ClientInterface => $this->defaultHttpClient());
 
+        // Null keeps the core's real wait between retries; a test binds a callable that does not wait.
+        $this->app->bindIf('puntjes.sleeper', static fn (): ?callable => null);
+
         $this->app->singleton(PuntjesClient::class, function (): PuntjesClient {
             $clientId = (string) (config('puntjes.client_id') ?? '');
             $clientSecret = (string) (config('puntjes.client_secret') ?? '');
@@ -58,6 +61,7 @@ final class PuntjesServiceProvider extends ServiceProvider
                     ['User-Agent' => 'puntjes-laravel/'.$this->app->version()],
                     (array) config('puntjes.http.default_headers', []),
                 ),
+                sleeper: $this->app->make('puntjes.sleeper'),
             );
         });
 
@@ -78,7 +82,7 @@ final class PuntjesServiceProvider extends ServiceProvider
      */
     public function provides(): array
     {
-        return [PuntjesClient::class, TokenStore::class, 'puntjes.http', 'puntjes'];
+        return [PuntjesClient::class, TokenStore::class, 'puntjes.http', 'puntjes.sleeper', 'puntjes'];
     }
 
     /**

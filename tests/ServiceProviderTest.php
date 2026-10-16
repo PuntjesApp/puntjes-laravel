@@ -119,6 +119,27 @@ final class ServiceProviderTest extends TestCase
         self::assertSame(2, $http->apiRequests);
     }
 
+    public function test_a_bound_sleeper_replaces_the_wait_between_retries(): void
+    {
+        config()->set('puntjes.http.retries', 2);
+        $slept = [];
+        $this->app->instance('puntjes.sleeper', static function (float $seconds) use (&$slept): void {
+            $slept[] = $seconds;
+        });
+        $http = $this->fakeApi(static fn (): array => [503, self::error('SERVICE_UNAVAILABLE', 503)]);
+        $started = microtime(true);
+
+        try {
+            PuntjesFacade::rewards()->get()->wait();
+            self::fail('Expected a ServerException.');
+        } catch (ServerException) {
+        }
+
+        self::assertSame(3, $http->apiRequests);
+        self::assertCount(2, $slept);
+        self::assertLessThan(0.5, microtime(true) - $started);
+    }
+
     public function test_without_a_bound_client_the_package_http_client_sends_the_requests(): void
     {
         $http = $this->fakeApi(static fn (): array => [200, ['data' => []]]);
