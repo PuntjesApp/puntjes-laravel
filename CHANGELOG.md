@@ -5,6 +5,13 @@ Notable changes to `puntjes/laravel`. The format follows
 [semantic versioning](https://semver.org/). From 1.0.0 that promise is the ordinary
 one: a breaking change waits for the next major, so `^1.0` is safe to pin and leave.
 
+## [3.3.0](https://github.com/PuntjesApp/puntjes-laravel/compare/v3.2.1...v3.3.0) (2026-10-16)
+
+
+### Features
+
+* let an app replace the wait between retries with puntjes.sleeper ([#43](https://github.com/PuntjesApp/puntjes-laravel/issues/43)) ([dcf8a2a](https://github.com/PuntjesApp/puntjes-laravel/commit/dcf8a2a0b2912ae5a4b31df56c55b03344278496))
+
 ## [3.2.1](https://github.com/PuntjesApp/puntjes-laravel/compare/v3.2.0...v3.2.1) (2026-10-16)
 
 
