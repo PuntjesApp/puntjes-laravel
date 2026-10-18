@@ -16,6 +16,7 @@ use Puntjes\Generated\PuntjesClient;
  * The `@method` lines below are written by `scripts/facade-methods.php` from the core
  * client, so they follow each core release. Never edit them by hand.
  *
+ * @method static \Puntjes\Generated\Branches\BranchesRequestBuilder branches()
  * @method static \Puntjes\Generated\Campaigns\CampaignsRequestBuilder campaigns()
  * @method static \Puntjes\Generated\Customers\CustomersRequestBuilder customers()
  * @method static \Puntjes\Generated\Health\HealthRequestBuilder health()
