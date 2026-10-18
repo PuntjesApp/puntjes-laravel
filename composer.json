@@ -19,7 +19,7 @@
         "php": "^8.2",
         "illuminate/contracts": "^12.0 || ^13.0",
         "illuminate/support": "^12.0 || ^13.0",
-        "puntjes/php-sdk": "^3.2.1"
+        "puntjes/php-sdk": "^3.2.2"
     },
     "require-dev": {
         "orchestra/testbench": "^10.0 || ^11.0",
