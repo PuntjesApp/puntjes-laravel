@@ -12,6 +12,20 @@ one: a breaking change waits for the next major, so `^1.0` is safe to pin and le
 
 * **deps:** require puntjes/php-sdk v3.3.0 ([#50](https://github.com/PuntjesApp/puntjes-laravel/issues/50)) ([5547eed](https://github.com/PuntjesApp/puntjes-laravel/commit/5547eed7edfe1e5f58fd13777f470ccf3cc1d798))
 
+### ⚠ Breaking
+
+This package changed no public signature. The break comes through the facade from `puntjes/php-sdk` 3.3.0: the body of `POST /redemptions/{code}/verify` is now a required argument. Any install on `puntjes/php-sdk` 3.3.0 or newer has it, also an older `puntjes/laravel` 3.x, because their `^3.2.2` range allows it.
+
+```php
+// before
+Puntjes::redemptions()->byCode($code)->verify()->post();
+
+// after
+Puntjes::redemptions()->byCode($code)->verify()->post(new \Puntjes\Generated\Models\VerifyRedemptionData());
+```
+
+`VerifyRedemptionData` has the optional `setBranch()` and `setIdempotencyKey()`. This is the only public break in the core between 3.2.2 and 3.3.0. `Puntjes::branches()` is new.
+
 ## [3.3.2](https://github.com/PuntjesApp/puntjes-laravel/compare/v3.3.1...v3.3.2) (2026-10-18)
 
 

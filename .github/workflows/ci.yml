@@ -63,15 +63,62 @@ jobs:
           composer require --dev --no-interaction --no-progress --update-with-dependencies laravel/pint:1.32.1
           vendor/bin/pint --test
 
+  # Compares the public API with the newest release tag. A removed or changed public signature fails the PR
+  # unless its title is `type!:` or its body has `BREAKING CHANGE`. The checker is pinned: its rules move between
+  # releases, so a newer one is a reviewed change to this pin. It needs ext-intl, and it reads git tags, so it
+  # needs the full history. The release PR is skipped: every commit in it passed this check when it merged.
+  bc:
+    name: Backward compatibility
+    if: github.event_name == 'pull_request' && !startsWith(github.head_ref, 'release-please--')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      PR_TITLE: ${{ github.event.pull_request.title }}
+      PR_BODY: ${{ github.event.pull_request.body }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # 2.40.0
+        with:
+          php-version: '8.4'
+          extensions: intl
+          coverage: none
+
+      - name: Install the checker
+        run: composer global require --no-interaction --no-progress roave/backward-compatibility-check:8.23.0
+
+      - name: Compare the public API with the newest release
+        run: |
+          base=$(git tag --list 'v*' --sort=-v:refname | head -n 1)
+          test -n "$base" || { echo "::error::No release tag found to compare with."; exit 1; }
+          status=0
+          "$(composer global config bin-dir --absolute --quiet)/roave-backward-compatibility-check" \
+            --from="$base" --to=HEAD || status=$?
+          if [ "$status" -eq 0 ]; then
+            exit 0
+          fi
+          if printf '%s' "$PR_TITLE" | grep -Eq '^[a-z]+(\([^)]*\))?!:' || printf '%s' "$PR_BODY" | grep -q 'BREAKING CHANGE'; then
+            echo "::notice::The public API breaks since $base, and this PR says so."
+            exit 0
+          fi
+          echo "::error::This PR breaks the public API since $base. Retitle it with a !, as in feat!: or fix!:, or put BREAKING CHANGE: in the PR body. Otherwise remove the break."
+          exit 1
+
   # The one check branch protection requires, so a change to the matrix never edits the protection.
   ci:
     name: CI
-    needs: test
+    needs: [test, bc]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
       - name: Every leg passed
         env:
-          RESULT: ${{ needs.test.result }}
-        run: test "$RESULT" = success
+          TEST_RESULT: ${{ needs.test.result }}
+          BC_RESULT: ${{ needs.bc.result }}
+        run: |
+          test "$TEST_RESULT" = success
+          case "$BC_RESULT" in success|skipped) ;; *) exit 1 ;; esac
