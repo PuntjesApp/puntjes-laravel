@@ -96,7 +96,7 @@ jobs:
           test -n "$base" || { echo "::error::No release tag found to compare with."; exit 1; }
           status=0
           "$(composer global config bin-dir --absolute --quiet)/roave-backward-compatibility-check" \
-            --from="$base" --to=HEAD --format=github-actions || status=$?
+            --from="$base" --to=HEAD || status=$?
           if [ "$status" -eq 0 ]; then
             exit 0
           fi
