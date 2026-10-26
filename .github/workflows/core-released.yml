@@ -82,6 +82,20 @@ jobs:
           else
             echo "stage=fresh" >> "$GITHUB_OUTPUT"
           fi
+      # puntjes-php-sdk sends core-released once Packagist serves the tag to its own runner, but the CDN can still serve
+      # this runner the old metadata. On 2026-10-26 composer did not find v3.4.0 here 14 seconds after the tag.
+      - name: Wait until composer resolves the tag
+        if: steps.state.outputs.stage == 'fresh'
+        run: |
+          for _ in $(seq 1 40); do
+            if composer show --all --no-interaction puntjes/php-sdk "$TAG" > /dev/null 2>&1; then
+              echo "composer resolves puntjes/php-sdk $TAG"
+              exit 0
+            fi
+            sleep 15
+          done
+          echo "::error::composer does not resolve puntjes/php-sdk $TAG after 10 minutes."
+          exit 1
       # Builds on the newest main, not on the commit of the dispatch. A workflow edit merged on main during the run makes
       # GitHub refuse the branch (the App has no workflows permission), so a refused push runs again on the new tip.
       - name: Bump, commit and push
