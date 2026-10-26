@@ -82,6 +82,8 @@ jobs:
           else
             echo "stage=fresh" >> "$GITHUB_OUTPUT"
           fi
+      # Builds on the newest main, not on the commit of the dispatch. A workflow edit merged on main during the run makes
+      # GitHub refuse the branch (the App has no workflows permission), so a refused push runs again on the new tip.
       - name: Bump, commit and push
         if: steps.state.outputs.stage == 'fresh'
         env:
@@ -90,15 +92,30 @@ jobs:
           TYPE: ${{ steps.plan.outputs.commit_type }}
           CONSTRAINT: ${{ steps.plan.outputs.constraint }}
         run: |
-          composer require "puntjes/php-sdk:${CONSTRAINT}" --no-update --no-interaction
-          composer update --no-interaction --no-progress --prefer-dist
-          php scripts/facade-methods.php
           git config user.name "puntjes-sdk-bot[bot]"
           git config user.email "puntjes-sdk-bot[bot]@users.noreply.github.com"
-          git switch -c "$BRANCH"
-          git add composer.json src/Facades/Puntjes.php
-          git commit -m "${TYPE}: require puntjes/php-sdk ${TAG}"
-          git push "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" "$BRANCH"
+          base=
+          for attempt in 1 2 3; do
+            git fetch --quiet --depth=1 origin main
+            tip=$(git rev-parse FETCH_HEAD)
+            if [ "$tip" = "$base" ]; then
+              echo "::error::The push of $BRANCH was refused and main did not move, so another attempt cannot help."
+              exit 1
+            fi
+            base=$tip
+            git checkout --quiet --force -B "$BRANCH" "$tip"
+            composer require "puntjes/php-sdk:${CONSTRAINT}" --no-update --no-interaction
+            composer update --no-interaction --no-progress --prefer-dist
+            php scripts/facade-methods.php
+            git add composer.json src/Facades/Puntjes.php
+            git commit -m "${TYPE}: require puntjes/php-sdk ${TAG}"
+            if git push "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" "$BRANCH"; then
+              exit 0
+            fi
+            echo "::warning::Attempt $attempt: the push of $BRANCH was refused. main may have moved, so this runs again on its tip."
+          done
+          echo "::error::main moved during each of the 3 attempts."
+          exit 1
       - name: Open the PR
         if: steps.state.outputs.stage == 'fresh' || steps.state.outputs.stage == 'resume'
         env:
