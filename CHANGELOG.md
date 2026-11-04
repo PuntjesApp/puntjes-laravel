@@ -5,6 +5,13 @@ Notable changes to `puntjes/laravel`. The format follows
 [semantic versioning](https://semver.org/). From 1.0.0 that promise is the ordinary
 one: a breaking change waits for the next major, so `^1.0` is safe to pin and leave.
 
+## [3.5.2](https://github.com/PuntjesApp/puntjes-laravel/compare/v3.5.1...v3.5.2) (2026-11-04)
+
+
+### Bug Fixes
+
+* **deps:** require puntjes/php-sdk v3.4.2 ([#69](https://github.com/PuntjesApp/puntjes-laravel/issues/69)) ([8fb956a](https://github.com/PuntjesApp/puntjes-laravel/commit/8fb956a4848017313847969ea4b47663c4f07a10))
+
 ## [3.5.1](https://github.com/PuntjesApp/puntjes-laravel/compare/v3.5.0...v3.5.1) (2026-10-26)
 
 
