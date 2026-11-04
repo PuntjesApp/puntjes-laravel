@@ -162,11 +162,8 @@ $this->app->instance('puntjes.sleeper', fn (float $seconds) => null);
 
 ## Requirements
 
-- PHP 8.2+
+- PHP 8.2+, the floor of the core SDK as well
 - Laravel 12 or 13
-
-The core SDK targets PHP 8.1 so it can reach older WooCommerce hosts; this package
-tracks Laravel's own floor instead.
 
 ## Roadmap
 
