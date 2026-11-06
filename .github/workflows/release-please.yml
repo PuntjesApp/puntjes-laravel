@@ -17,6 +17,9 @@ jobs:
     name: Release PR and tag
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    outputs:
+      released: ${{ steps.release.outputs.release_created }}
+      tag: ${{ steps.release.outputs.tag_name }}
     steps:
       - uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
         id: app
@@ -42,3 +45,35 @@ jobs:
             exit 0
           fi
           gh pr merge "$number" --repo "$GITHUB_REPOSITORY" --auto --squash
+
+  # Tells #alerts in the Puntjes Slack that a release went out or failed. A push without a release says nothing.
+  # The webhook is the organisation secret SLACK_RELEASE_WEBHOOK; a Slack failure never fails this job.
+  slack:
+    name: Tell Slack
+    needs: release-please
+    if: ${{ !cancelled() && (needs.release-please.result == 'failure' || needs.release-please.outputs.released == 'true') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions: {}
+    steps:
+      - name: Post the result
+        env:
+          SLACK_RELEASE_WEBHOOK: ${{ secrets.SLACK_RELEASE_WEBHOOK }}
+          RELEASE_RESULT: ${{ needs.release-please.result }}
+          TAG: ${{ needs.release-please.outputs.tag }}
+          REPO: ${{ github.repository }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          if [ "$RELEASE_RESULT" = 'success' ]; then
+            text=":package: ${REPO#*/} ${TAG} released. <${RUN_URL}|Workflow run>"
+          else
+            text=":x: ${REPO#*/} release ${TAG:-(no tag)} failed. Re-run the failed jobs. <${RUN_URL}|Workflow run>"
+          fi
+          if [ -z "${SLACK_RELEASE_WEBHOOK:-}" ]; then
+            echo "::notice::No SLACK_RELEASE_WEBHOOK secret, so Slack gets no message."
+            exit 0
+          fi
+          if ! jq -n --arg text "$text" '{text: $text}' |
+            curl -sS --fail --max-time 10 -H 'Content-Type: application/json' -d @- "$SLACK_RELEASE_WEBHOOK" > /dev/null; then
+            echo "::warning::Slack did not take the message."
+          fi

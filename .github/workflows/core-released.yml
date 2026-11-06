@@ -211,3 +211,29 @@ jobs:
           else
             gh issue create --repo "$GITHUB_REPOSITORY" --title "Bump failed" --body-file "$body"
           fi
+
+  # Tells #alerts in the Puntjes Slack that a new core release did not become a pull request here.
+  slack:
+    name: Tell Slack
+    needs: bump
+    if: ${{ failure() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions: {}
+    steps:
+      - name: Post the failure
+        env:
+          SLACK_RELEASE_WEBHOOK: ${{ secrets.SLACK_RELEASE_WEBHOOK }}
+          TAG: ${{ github.event.client_payload.tag || inputs.tag }}
+          REPO: ${{ github.repository }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          text=":x: ${REPO#*/} could not require puntjes/php-sdk ${TAG}, so no release follows. <${RUN_URL}|Workflow run>"
+          if [ -z "${SLACK_RELEASE_WEBHOOK:-}" ]; then
+            echo "::notice::No SLACK_RELEASE_WEBHOOK secret, so Slack gets no message."
+            exit 0
+          fi
+          if ! jq -n --arg text "$text" '{text: $text}' |
+            curl -sS --fail --max-time 10 -H 'Content-Type: application/json' -d @- "$SLACK_RELEASE_WEBHOOK" > /dev/null; then
+            echo "::warning::Slack did not take the message."
+          fi
